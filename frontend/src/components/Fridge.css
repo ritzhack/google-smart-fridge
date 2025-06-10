@@ -1,0 +1,53 @@
+.recipe-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.recipe-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.health-badge {
+  padding: 5px 10px;
+  border-radius: 15px;
+  color: white;
+  font-size: 0.9em;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.calorie-badge {
+  background: linear-gradient(145deg, #4facfe, #00f2fe);
+  padding: 5px 10px;
+  border-radius: 15px;
+  color: white;
+  font-size: 0.9em;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.expiry-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 107, 107, 0.1);
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  animation: pulse 2s infinite;
+}
+
+.warning-icon {
+  font-size: 1.2em;
+}
+
+.warning-text {
+  color: #ff6b6b;
+  font-size: 0.9em;
+  font-weight: 500;
+} 

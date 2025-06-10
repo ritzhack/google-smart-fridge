@@ -1,0 +1,376 @@
+# /home/ubuntu/smart_fridge_app/backend/smart_fridge_api/src/routes/inventory_routes.py
+from flask import Blueprint, request, jsonify
+from src.db_connector import get_db_instance
+from src.models.item import Item
+from src.services.ai_service import AIService
+from src.services.image_processing_service import ImageProcessingService
+from src.helper.identify_object_from_picutre import identify_object_from_image
+from src.helper.process_inventory import process_perplexity_response
+from src.helper.process_image_vectors import process_image_pair, store_image_vector
+from bson import ObjectId # For converting string ID to ObjectId for MongoDB queries
+import datetime
+import traceback
+import sys
+import base64
+
+inventory_bp = Blueprint("inventory_bp", __name__, url_prefix="/api/inventory")
+db = get_db_instance()
+ai_service = AIService()
+image_service = ImageProcessingService()
+
+@inventory_bp.route("/debug", methods=["GET"])
+def debug_connection():
+    """Debug route to check MongoDB connection"""
+    try:
+        if db is None:
+            return jsonify({
+                "error": "Database connection failed",
+                "db_object": str(db),
+                "connection_status": "None"
+            }), 500
+
+        # Try a simple database operation
+        collections = db.list_collection_names() if db else []
+        
+        return jsonify({
+            "status": "Database connection successful",
+            "db_object": str(db),
+            "collections": collections
+        }), 200
+    except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        error_details = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        
+        return jsonify({
+            "error": str(e),
+            "db_object": str(db),
+            "traceback": error_details
+        }), 500
+
+@inventory_bp.route("/items", methods=["POST"])
+def add_item_to_inventory():
+    data = request.get_json()
+    if not data or not data.get("name") or not data.get("quantity"):
+        return jsonify({"error": "Missing item name or quantity"}), 400
+
+    item_name = data.get("name")
+    quantity = data.get("quantity")
+    image_url = data.get("image_url") # Optional
+
+    # Simulate getting expiration date from AI service
+    expiration_date_dt = ai_service.get_general_expiration_info(item_name)
+    
+    # Convert date to datetime for MongoDB compatibility if needed, or store as string
+    # For simplicity, storing as string if it's a date object, otherwise None
+    expiration_date_iso = None
+    if expiration_date_dt:
+        expiration_date_iso = expiration_date_dt.isoformat()
+
+    new_item = Item(
+        name=item_name,
+        quantity=quantity,
+        expiration_date=expiration_date_iso, # Store as ISO string or datetime object
+        image_url=image_url
+    )
+
+    try:
+        if db is None:
+            return jsonify({"error": "Database connection failed. Check backend logs."}), 500
+            
+        item_dict = new_item.to_dict()
+        if "_id" in item_dict:
+            del item_dict["_id"] # Remove _id if present, MongoDB will generate it
+        
+        result = db.items.insert_one(item_dict)
+        created_item = db.items.find_one({"_id": result.inserted_id})
+        return jsonify(Item.from_dict(created_item).to_dict()), 201
+    except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        error_details = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        print("ERROR in add_item_to_inventory:", error_details)
+        return jsonify({"error": str(e), "details": error_details}), 500
+
+@inventory_bp.route("/items", methods=["GET"])
+def get_all_items():
+    try:
+        if db is None:
+            return jsonify({"error": "Database connection failed. Check backend logs."}), 500
+            
+        # Try to access the items collection
+        items_cursor = db.items.find()
+        items_list = [Item.from_dict(item_data).to_dict() for item_data in items_cursor]
+        return jsonify(items_list), 200
+    except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        error_details = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        print("ERROR in get_all_items:", error_details)
+        return jsonify({"error": str(e), "details": error_details}), 500
+
+@inventory_bp.route("/items/<item_id>", methods=["GET"])
+def get_item_by_id(item_id):
+    try:
+        item_data = db.items.find_one({"_id": ObjectId(item_id)})
+        if item_data:
+            return jsonify(Item.from_dict(item_data).to_dict()), 200
+        else:
+            return jsonify({"error": "Item not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@inventory_bp.route("/items/<item_id>", methods=["PUT"])
+def update_item(item_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided for update"}), 400
+
+    update_fields = {}
+    if "name" in data: update_fields["name"] = data["name"]
+    if "quantity" in data: update_fields["quantity"] = data["quantity"]
+    if "expiration_date" in data: update_fields["expiration_date"] = data["expiration_date"] # Expecting ISO date string
+    if "image_url" in data: update_fields["image_url"] = data["image_url"]
+
+    if not update_fields:
+        return jsonify({"error": "No valid fields to update"}), 400
+    
+    update_fields["date_added"] = datetime.datetime.utcnow() # Update date_added on modification
+
+    try:
+        result = db.items.update_one({"_id": ObjectId(item_id)}, {"$set": update_fields})
+        if result.matched_count:
+            updated_item = db.items.find_one({"_id": ObjectId(item_id)})
+            return jsonify(Item.from_dict(updated_item).to_dict()), 200
+        else:
+            return jsonify({"error": "Item not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@inventory_bp.route("/items/<item_id>", methods=["DELETE"])
+def delete_item(item_id):
+    try:
+        result = db.items.delete_one({"_id": ObjectId(item_id)})
+        if result.deleted_count:
+            return jsonify({"message": "Item deleted successfully"}), 200
+        else:
+            return jsonify({"error": "Item not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Placeholder for simulating image processing to add/remove items
+@inventory_bp.route("/process-image", methods=["POST"])
+def process_fridge_image():
+    # This is a conceptual endpoint. 
+    # In a real scenario, this would receive an image, use image_service to identify items,
+    # then use ai_service for expiration, and update the DB.
+    # For now, it can simulate this flow based on mock data.
+    data = request.get_json()
+    image_identifier = data.get("image_identifier", "default_simulated_items") # e.g., "fridge_full.jpg" or a list of items
+
+    # 1. Get current items from DB (simulating previous state)
+    try:
+        current_db_items_cursor = db.items.find()
+        previous_item_names = [item["name"] for item in current_db_items_cursor]
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch current inventory: {str(e)}"}), 500
+
+    # 2. Simulate image capture and item identification
+    identified_item_names = image_service.simulate_capture_and_identify_items(image_identifier)
+
+    # 3. Determine changes
+    added_names, removed_names = image_service.determine_item_change(previous_item_names, identified_item_names)
+
+    # 4. Process changes
+    results = {"added": [], "removed": [], "errors": []}
+
+    for name in added_names:
+        exp_date_dt = ai_service.get_general_expiration_info(name)
+        exp_date_iso = exp_date_dt.isoformat() if exp_date_dt else None
+        new_item = Item(name=name, quantity=1, expiration_date=exp_date_iso) # Default quantity 1
+        item_dict = new_item.to_dict()
+        if "_id" in item_dict:
+            del item_dict["_id"]
+        try:
+            db.items.insert_one(item_dict)
+            results["added"].append(name)
+        except Exception as e:
+            results["errors"].append({"name": name, "action": "add", "error": str(e)})
+    
+    for name in removed_names:
+        try:
+            # Simple removal by name. Could be more sophisticated (e.g. if multiple items with same name)
+            delete_result = db.items.delete_one({"name": name})
+            if delete_result.deleted_count > 0:
+                results["removed"].append(name)
+            else:
+                results["errors"].append({"name": name, "action": "remove", "error": "item not found for removal by name"})
+        except Exception as e:
+            results["errors"].append({"name": name, "action": "remove", "error": str(e)})
+            
+    return jsonify(results), 200
+
+@inventory_bp.route("/upload-image", methods=["POST"])
+def upload_image():
+    """
+    Handles image upload and processes using vector search and/or Perplexity AI.
+    
+    Request can include:
+    - 'image': The first image (adding items to fridge)
+    - 'second_image': Optional second image (removing items from fridge)
+    """
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "No image file provided"}), 400
+            
+        # Get first image (adding to fridge)
+        first_image_file = request.files['image']
+        if first_image_file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+
+        # Read the first image file and convert to base64
+        first_image_data = first_image_file.read()
+        first_base64_image = base64.b64encode(first_image_data).decode('utf-8')
+        
+        # Get optional second image (removing from fridge)
+        second_base64_image = None
+        if 'second_image' in request.files:
+            second_image_file = request.files['second_image']
+            if second_image_file.filename != '':
+                second_image_data = second_image_file.read()
+                second_base64_image = base64.b64encode(second_image_data).decode('utf-8')
+        
+        print("Processing image pair...")
+        results = process_image_pair(first_base64_image, second_base64_image)
+        
+        # Check if we need to use Perplexity for the first image
+        if "need_perplexity" in results:
+            temp_image_path = results.pop("need_perplexity")
+            
+            print("Using Vertex AI to identify objects in the image...")
+            perplexity_response = identify_object_from_image(image_url=f"data:image/jpeg;base64,{first_base64_image}")
+            
+            # Process the response
+            perplexity_results, status_code = process_perplexity_response(perplexity_response, first_base64_image)
+            
+            # Ensure all required keys exist in results before merging
+            for key in ["added", "updated", "errors"]:
+                if key not in results:
+                    results[key] = []
+                if key in perplexity_results:
+                    results[key].extend(perplexity_results.get(key, []))
+            
+            # Store image vectors for newly identified items
+            if "added" in perplexity_results and perplexity_results["added"]:
+                for item_name in perplexity_results["added"]:
+                    # Find the item in the database to get its expiration date
+                    item_doc = db.items.find_one({"name": item_name.lower()})
+                    if item_doc:
+                        # Calculate expiration period in days
+                        try:
+                            exp_date = datetime.datetime.fromisoformat(item_doc.get("expiration_date"))
+                            current_date = datetime.datetime.utcnow()
+                            expiration_period = (exp_date - current_date).days
+                            
+                            # Ensure expiration period is positive
+                            expiration_period = max(1, expiration_period)
+                            
+                            # Store the image vector
+                            print(f"Storing image vector for {item_name} with expiration period {expiration_period} days")
+                            store_image_vector(temp_image_path, item_name, expiration_period)
+                            results["vector_stored"] = True
+                        except Exception as e:
+                            print(f"Error storing vector for {item_name}: {str(e)}")
+                            if "errors" not in results:
+                                results["errors"] = []
+                            results["errors"].append({
+                                "name": item_name,
+                                "action": "store_vector",
+                                "error": str(e)
+                            })
+        
+        return jsonify(results), 200
+        
+    except Exception as e:
+        print(f"DEBUG: Error in upload_image: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@inventory_bp.route("/upload-image-pair", methods=["POST"])
+def upload_image_pair():
+    """
+    New endpoint specifically for handling pairs of images.
+    - First image: Adding item to fridge
+    - Second image: Removing item from fridge
+    """
+    try:
+        if 'first_image' not in request.files:
+            return jsonify({"error": "First image file is required"}), 400
+            
+        # Get first image (adding to fridge)
+        first_image_file = request.files['first_image']
+        if first_image_file.filename == '':
+            return jsonify({"error": "Empty first image file"}), 400
+            
+        # Read the first image file and convert to base64
+        first_image_data = first_image_file.read()
+        first_base64_image = base64.b64encode(first_image_data).decode('utf-8')
+        
+        # Get second image (removing from fridge) - optional
+        second_base64_image = None
+        if 'second_image' in request.files:
+            second_image_file = request.files['second_image']
+            if second_image_file.filename != '':
+                second_image_data = second_image_file.read()
+                second_base64_image = base64.b64encode(second_image_data).decode('utf-8')
+        
+        # Process the image pair
+        results = process_image_pair(first_base64_image, second_base64_image)
+        
+        # Check if we need to use Perplexity for the first image
+        if "need_perplexity" in results:
+            temp_image_path = results.pop("need_perplexity")
+            
+            print("Using Vertex AI to identify objects in the image...")
+            perplexity_response = identify_object_from_image(image_url=f"data:image/jpeg;base64,{first_base64_image}")
+            
+            # Process the response
+            perplexity_results, status_code = process_perplexity_response(perplexity_response, first_base64_image)
+            
+            # Ensure all required keys exist in results before merging
+            for key in ["added", "updated", "errors"]:
+                if key not in results:
+                    results[key] = []
+                if key in perplexity_results:
+                    results[key].extend(perplexity_results.get(key, []))
+            
+            # Store image vectors for newly identified items
+            if "added" in perplexity_results and perplexity_results["added"]:
+                for item_name in perplexity_results["added"]:
+                    # Find the item in the database to get its expiration date
+                    item_doc = db.items.find_one({"name": item_name.lower()})
+                    if item_doc:
+                        # Calculate expiration period in days
+                        try:
+                            exp_date = datetime.datetime.fromisoformat(item_doc.get("expiration_date"))
+                            current_date = datetime.datetime.utcnow()
+                            expiration_period = (exp_date - current_date).days
+                            
+                            # Ensure expiration period is positive
+                            expiration_period = max(1, expiration_period)
+                            
+                            # Store the image vector
+                            print(f"Storing image vector for {item_name} with expiration period {expiration_period} days")
+                            store_image_vector(temp_image_path, item_name, expiration_period)
+                            results["vector_stored"] = True
+                        except Exception as e:
+                            print(f"Error storing vector for {item_name}: {str(e)}")
+                            if "errors" not in results:
+                                results["errors"] = []
+                            results["errors"].append({
+                                "name": item_name,
+                                "action": "store_vector",
+                                "error": str(e)
+                            })
+        
+        return jsonify(results), 200
+        
+    except Exception as e:
+        print(f"Error in upload_image_pair: {str(e)}")
+        return jsonify({"error": str(e)}), 500
