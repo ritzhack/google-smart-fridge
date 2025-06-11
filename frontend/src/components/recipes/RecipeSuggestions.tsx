@@ -1,27 +1,22 @@
 import React, { useState } from 'react';
-import { Recipe, InventoryItem } from '../types';
+import { Recipe, InventoryItem } from '../../types';
+import { getRecipeImage } from './util/recipeImageUtils';
 import './RecipeSuggestions.css';
 
 interface RecipeSuggestionsProps {
   recipes: Recipe[];
-  inventory: InventoryItem[];
   isLoading: boolean;
   onGenerateRecipes: () => void;
+  showSuggestButton?: boolean;
 }
 
 export const RecipeSuggestions: React.FC<RecipeSuggestionsProps> = ({
   recipes,
-  inventory,
   isLoading,
   onGenerateRecipes,
+  showSuggestButton = false,
 }) => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-
-  // Function to get a recipe image or placeholder
-  const getRecipeImage = () => {
-    // In a real app, you would use actual recipe images
-    return 'https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=500&auto=format&fit=crop';
-  };
 
   const handleRecipeClick = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
@@ -31,20 +26,30 @@ export const RecipeSuggestions: React.FC<RecipeSuggestionsProps> = ({
     setSelectedRecipe(null);
   };
 
+  // If showSuggestButton is true and no recipes, show empty state without button
+  // If showSuggestButton is false, show the recipe list or empty message
+  if (showSuggestButton && recipes.length === 0) {
+    return (
+      <div className="recipe-suggestions">
+        <h2>Recipe Suggestions</h2>
+        <div className="empty-state">
+          <p>No recipes found. Try generating some recipes first!</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="recipe-suggestions">
       <h2>Recipe Suggestions</h2>
       
-      {recipes.length === 0 ? (
+      {isLoading && recipes.length === 0 ? (
+        <div className="loading-state">
+          <p>Generating recipes based on your ingredients...</p>
+        </div>
+      ) : recipes.length === 0 ? (
         <div className="empty-state">
-          <p>Get delicious recipe ideas based on what's in your fridge</p>
-          <button 
-            className="suggest-button" 
-            onClick={onGenerateRecipes} 
-            disabled={isLoading || inventory.length === 0}
-          >
-            {isLoading ? "Finding recipes..." : "Suggest Recipes"}
-          </button>
+          <p>No recipes available. Generate some recipes to get started!</p>
         </div>
       ) : (
         <div className="recipe-list">
@@ -55,7 +60,7 @@ export const RecipeSuggestions: React.FC<RecipeSuggestionsProps> = ({
               onClick={() => handleRecipeClick(recipe)}
             >
               <img 
-                src={getRecipeImage()} 
+                src={getRecipeImage(recipe)} 
                 alt={recipe.name} 
                 className="recipe-image" 
               />
@@ -96,7 +101,7 @@ export const RecipeSuggestions: React.FC<RecipeSuggestionsProps> = ({
           </div>
           
           <img 
-            src={getRecipeImage()} 
+            src={getRecipeImage(selectedRecipe)} 
             alt={selectedRecipe.name} 
             className="recipe-detail-image" 
           />

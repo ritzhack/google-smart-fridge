@@ -8,12 +8,23 @@ export interface InventoryItem {
   category?: string;
 }
 
+// Define a type for scan items to fix TypeScript errors
+export interface ScanItem {
+  id: string;
+  name: string;
+  quantity: string;
+  category: string;
+  expiration_date?: string;
+  image_data?: string;
+}
+
 export interface Recipe {
   _id?: string;
   name: string;
   ingredients: string[];
   instructions: string | string[];
   source_url?: string;
+  image_url?: string;
   cooking_time?: number;
   calories?: number;
   nutrition?: {

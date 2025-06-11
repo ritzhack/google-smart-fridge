@@ -834,6 +834,35 @@ body {
   font-weight: 500;
 }
 
+.scan-panel-section .loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.scan-panel-section .loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #2196F3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.scan-panel-section .loading-text {
+  margin: 0;
+  color: #666;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .scan-panel-section .process-images-container {
   text-align: center;
   margin-bottom: 16px;

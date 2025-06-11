@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { ExpirationAlerts as ExpirationAlertsType } from '../types';
-import { checkExpirations } from '../services/api';
+import { ExpirationAlerts as ExpirationAlertsType } from '../../types';
+import { checkExpirations } from '../../services/api';
 
 interface ExpirationAlertsProps {
   alerts: ExpirationAlertsType;

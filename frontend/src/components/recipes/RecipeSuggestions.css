@@ -542,4 +542,76 @@
   margin: 0;
   line-height: 1.5;
   font-size: 0.875rem;
+}
+
+/* Recipe Suggest Button Component Styling */
+.recipe-suggest-section {
+  margin: 20px 0 40px;
+  padding: 24px;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.suggest-content {
+  text-align: center;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.suggest-content h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.suggest-content p {
+  margin-bottom: 24px;
+  color: #666;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* Override the general suggest-button class for the RecipeSuggestButton component */
+.recipe-suggest-section .suggest-button {
+  background-color: #111;
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 160px;
+  display: inline-block;
+}
+
+.recipe-suggest-section .suggest-button:hover:not(:disabled) {
+  background-color: #333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.recipe-suggest-section .suggest-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.recipe-suggest-section .suggest-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.empty-inventory-message {
+  margin-top: 16px;
+  color: #999;
+  font-size: 0.9rem;
+  font-style: italic;
 } 
