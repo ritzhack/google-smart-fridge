@@ -13,27 +13,27 @@ function App() {
   // Core data state
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [expirationAlerts, setExpirationAlerts] = useState<ExpirationAlertsType>({ 
-    warning_week: [], 
-    warning_3_days: [] 
+  const [expirationAlerts, setExpirationAlerts] = useState<ExpirationAlertsType>({
+    warning_week: [],
+    warning_3_days: []
   });
-  
+
   // UI state
   const [activeTab, setActiveTab] = useState<'home' | 'recipes' | 'inventory' | 'settings'>('home');
   const [expandedFridge, setExpandedFridge] = useState<boolean>(false);
   const [showExpirationAlerts, setShowExpirationAlerts] = useState<boolean>(false);
   const [showRecipeList, setShowRecipeList] = useState<boolean>(false);
-  
+
   // Loading and error state
   const [isLoadingInventory, setIsLoadingInventory] = useState<boolean>(false);
   const [isLoadingRecipes, setIsLoadingRecipes] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
-  
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
   // Form state
   const [newItemName, setNewItemName] = useState<string>("");
   const [newItemQuantity, setNewItemQuantity] = useState<string>("1");
-  
+
   // Item detail modal state
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -85,7 +85,7 @@ function App() {
   const handleTabChange = (tab: 'home' | 'recipes' | 'inventory' | 'settings') => {
     setActiveTab(tab);
     if (tab !== 'home') setShowRecipeList(false);
-    
+
     // Auto-generate recipes for recipes tab
     if (tab === 'recipes' && recipes.length === 0 && inventory.length > 0 && !isLoadingRecipes) {
       handleGenerateRecipes();
@@ -98,7 +98,7 @@ function App() {
       alert("Fridge is empty! Add some items to get recipe suggestions.");
       return;
     }
-    
+
     setIsLoadingRecipes(true);
     setError(null);
     try {
@@ -129,15 +129,15 @@ function App() {
 
   // Item management
   const handleFoodItemClick = (item: InventoryItem) => setSelectedItem(item);
-  
+
   const handleRemoveItem = async (item: InventoryItem) => {
     try {
       if (item._id) await deleteInventoryItem(item._id);
-      
-      setInventory(prev => prev.filter(invItem => 
+
+      setInventory(prev => prev.filter(invItem =>
         invItem._id !== item._id && invItem.id !== item.id
       ));
-      
+
       fetchInventory();
       setSelectedItem(null);
     } catch (err) {
@@ -148,9 +148,9 @@ function App() {
 
   const handleAddItemManually = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!newItemName) return;
-    
+
     const newItem: ScanItem = {
       id: `manual-${Date.now()}`,
       name: newItemName,
@@ -159,7 +159,7 @@ function App() {
       expiration_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       image_data: ''
     };
-    
+
     setInventory(prev => [...prev, { ...newItem, _id: Date.now().toString() }]);
     setNewItemName("");
     setNewItemQuantity("1");
@@ -176,7 +176,7 @@ function App() {
 
   const toggleEditMode = () => {
     if (!selectedItem) return;
-    
+
     setEditedItem({
       name: selectedItem.name,
       quantity: selectedItem.quantity,
@@ -194,30 +194,30 @@ function App() {
 
   const saveItemChanges = async () => {
     if (!selectedItem?._id) return;
-    
+
     setIsSaving(true);
     setUpdateError(null);
-    
+
     try {
       const itemUpdate: Partial<InventoryItem> = {};
-      
+
       // Only include changed fields
       if (editedItem.name && editedItem.name !== selectedItem.name) itemUpdate.name = editedItem.name;
       if (editedItem.quantity && editedItem.quantity !== selectedItem.quantity) itemUpdate.quantity = editedItem.quantity;
       if (editedItem.category && editedItem.category !== selectedItem.category) itemUpdate.category = editedItem.category;
       if (editedItem.expiration_date && editedItem.expiration_date !== selectedItem.expiration_date) itemUpdate.expiration_date = editedItem.expiration_date;
-      
+
       if (Object.keys(itemUpdate).length > 0) {
         const response = await updateInventoryItem(selectedItem._id, itemUpdate);
-        
-        setInventory(prev => prev.map(item => 
+
+        setInventory(prev => prev.map(item =>
           item._id === selectedItem._id ? { ...item, ...response.data } : item
         ));
-        
+
         setSelectedItem(prev => prev ? { ...prev, ...response.data } : null);
         fetchInventory();
       }
-      
+
       setIsEditing(false);
     } catch (err) {
       console.error("Error updating item:", err);
@@ -240,12 +240,7 @@ function App() {
   const toggleExpirationAlerts = () => setShowExpirationAlerts(!showExpirationAlerts);
 
   // Notification handlers
-  const handleSuccess = (message: string) => {
-    setNotification({ message, type: 'success' });
-    setError(null); // Clear any existing errors
-  };
-
-  const handleError = (message: string | null) => {
+  const handleNotification = (message: string | null) => {
     if (message) {
       // Check if this is actually a success message disguised as an error
       if (message.includes('✅') || message.includes('🔄') || message.includes('🔍')) {
@@ -263,7 +258,7 @@ function App() {
 
   // Render content based on active tab
   const renderContent = () => {
-    switch(activeTab) {
+    switch (activeTab) {
       case 'home':
         return (
           <Home
@@ -283,8 +278,8 @@ function App() {
         );
       case 'recipes':
         return (
-          <RecipeSuggestions 
-            recipes={recipes} 
+          <RecipeSuggestions
+            recipes={recipes}
             isLoading={isLoadingRecipes}
             onGenerateRecipes={handleGenerateRecipes}
           />
@@ -307,23 +302,22 @@ function App() {
   return (
     <div className="app-container">
       <FridgeSimulator
-        error={error}
         onInventoryUpdate={fetchInventory}
-        onError={handleError}
+        onNotification={handleNotification}
         newItemName={newItemName}
         setNewItemName={setNewItemName}
         newItemQuantity={newItemQuantity}
         setNewItemQuantity={setNewItemQuantity}
         onAddItemManually={handleAddItemManually}
       />
-      
+
       <div className="App">
         <header className="app-header">
           <div className="brand">PROTAG & RITZ</div>
           <h1>Refrigerator</h1>
           <div className="connection-status">Connected</div>
         </header>
-        
+
         <main className="app-content">
           {error && <div className="error-message">{error}</div>}
           {notification && (
@@ -333,7 +327,7 @@ function App() {
                   <div key={index}>{line}</div>
                 ))}
               </div>
-              <button 
+              <button
                 className="notification-close"
                 onClick={() => setNotification(null)}
               >
@@ -343,8 +337,8 @@ function App() {
           )}
           {renderContent()}
         </main>
-        
-        <NavigationFooter 
+
+        <NavigationFooter
           activeTab={activeTab}
           onTabChange={handleTabChange}
         />

@@ -248,6 +248,7 @@ def _process_image_with_similarity_check():
                         results["updated"].append({
                             "name": item_name,
                             "new_quantity": new_quantity,
+                            "old_quantity": current_quantity,  # Include old quantity for comparison
                             "similarity_score": round(similarity_score, 4),
                             "action": "quantity_updated"
                         })
@@ -564,4 +565,75 @@ def upload_image_pair():
         
     except Exception as e:
         print(f"Error in upload_image_pair: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@inventory_bp.route("/reject-update", methods=["POST"])
+def reject_update_and_create_new():
+    """
+    Endpoint to handle when user rejects an item update and wants to create a new item instead.
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        item_name = data.get("item_name")
+        original_quantity = data.get("original_quantity", 1)
+        image_data = data.get("image_data")  # Base64 image data
+        
+        if not item_name:
+            return jsonify({"error": "Item name is required"}), 400
+        
+        # Revert the original item's quantity back to what it was
+        existing_item = db.items.find_one({"name": item_name.lower()})
+        if existing_item:
+            # Revert quantity
+            db.items.update_one(
+                {"_id": existing_item["_id"]},
+                {"$set": {"quantity": original_quantity}}
+            )
+        
+        # Create a new item with a unique name (append number)
+        base_name = item_name.lower()
+        counter = 1
+        new_name = f"{base_name}_{counter}"
+        
+        # Find a unique name
+        while db.items.find_one({"name": new_name}):
+            counter += 1
+            new_name = f"{base_name}_{counter}"
+        
+        # Get expiration date for this item type
+        expiration_date_dt = ai_service.get_general_expiration_info(item_name)
+        expiration_date_iso = expiration_date_dt.isoformat() if expiration_date_dt else None
+        
+        # Create the new item
+        new_item = Item(
+            name=new_name,
+            quantity=1,
+            expiration_date=expiration_date_iso,
+            image_data=image_data if image_data else None
+        )
+        
+        item_dict = new_item.to_dict()
+        if "_id" in item_dict:
+            del item_dict["_id"]
+        
+        result = db.items.insert_one(item_dict)
+        
+        return jsonify({
+            "message": "Update rejected and new item created",
+            "reverted_item": {
+                "name": item_name,
+                "quantity": original_quantity
+            },
+            "new_item": {
+                "name": new_name,
+                "quantity": 1,
+                "_id": str(result.inserted_id)
+            }
+        }), 201
+        
+    except Exception as e:
+        print(f"Error in reject_update_and_create_new: {str(e)}")
         return jsonify({"error": str(e)}), 500

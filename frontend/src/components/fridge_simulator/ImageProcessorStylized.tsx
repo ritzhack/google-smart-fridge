@@ -1,8 +1,9 @@
 import React, { useState, DragEvent, useRef } from 'react';
+import { UpdateConfirmationModal } from '../inventory/UpdateConfirmationModal';
 
 interface ImageProcessorStylizedProps {
   onInventoryUpdate: () => void;
-  onError: (error: string | null) => void;
+  onNotification: (message: string | null) => void;
   newItemName: string;
   setNewItemName: (name: string) => void;
   newItemQuantity: string;
@@ -12,7 +13,7 @@ interface ImageProcessorStylizedProps {
 
 export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
   onInventoryUpdate,
-  onError,
+  onNotification,
   newItemName,
   setNewItemName,
   newItemQuantity,
@@ -31,11 +32,16 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
   const takeInFileInputRef = useRef<HTMLInputElement>(null);
   const takeOutFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Confirmation modal state
+  const [showConfirmationModal, setShowConfirmationModal] = useState<boolean>(false);
+  const [pendingUpdates, setPendingUpdates] = useState<any[]>([]);
+  const [currentImageData, setCurrentImageData] = useState<{ first: string | null, second: string | null }>({ first: null, second: null });
+
   // Take In image handlers
   const handleTakeInDrag = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (e.type === "dragenter" || e.type === "dragover") {
       setTakeInDragActive(true);
     } else if (e.type === "dragleave") {
@@ -47,7 +53,7 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setTakeInDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleTakeInFile(e.dataTransfer.files[0]);
     }
@@ -78,7 +84,7 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
     };
     reader.onerror = () => {
       setTakeInLoading(false);
-      onError('Failed to process the image. Please try again.');
+      onNotification('Failed to process the image. Please try again.');
     };
     reader.readAsDataURL(file);
   };
@@ -99,7 +105,7 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
   const handleTakeOutDrag = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (e.type === "dragenter" || e.type === "dragover") {
       setTakeOutDragActive(true);
     } else if (e.type === "dragleave") {
@@ -111,7 +117,7 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setTakeOutDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleTakeOutFile(e.dataTransfer.files[0]);
     }
@@ -142,7 +148,7 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
     };
     reader.onerror = () => {
       setTakeOutLoading(false);
-      onError('Failed to process the image. Please try again.');
+      onNotification('Failed to process the image. Please try again.');
     };
     reader.readAsDataURL(file);
   };
@@ -162,24 +168,24 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
   // Process uploaded images
   const handleProcessImages = async () => {
     if (!takeInImage && !takeOutImage) {
-      onError("Please select at least one image to process.");
+      onNotification("Please select at least one image to process.");
       return;
     }
 
     setIsUploading(true);
-    onError(null);
+    onNotification(null);
 
     try {
       const formData = new FormData();
-      
+
       if (takeInImage) {
         formData.append('first_image', takeInImage);
       }
-      
+
       if (takeOutImage) {
         formData.append('second_image', takeOutImage);
       }
-      
+
       // Add parameter to indicate that we want to store the image in the vector database
       // if no similar images are found (similarity < 0.75)
       formData.append('store_new_images', 'true');
@@ -192,10 +198,26 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
 
       if (response.ok) {
         const responseData = await response.json();
-        
-        // Create notification messages for successful operations
+
+        // Store current image data for potential reject operations
+        setCurrentImageData({
+          first: takeInPreview,
+          second: takeOutPreview
+        });
+
+        // Check if there are updates that need confirmation
+        if (responseData.updated && responseData.updated.length > 0) {
+          // Show confirmation modal instead of immediate success notification
+          setPendingUpdates(responseData.updated);
+          setShowConfirmationModal(true);
+
+          // Don't process other notifications yet - wait for confirmation
+          return;
+        }
+
+        // Process non-update notifications normally
         const notifications = [];
-        
+
         // Handle added items
         if (responseData.added && responseData.added.length > 0) {
           const addedItems = responseData.added.map((item: any) => {
@@ -208,35 +230,22 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
           });
           notifications.push(`✅ Added: ${addedItems.join(', ')}`);
         }
-        
-        // Handle updated items
-        if (responseData.updated && responseData.updated.length > 0) {
-          const updatedItems = responseData.updated.map((item: any) => {
-            if (typeof item === 'string') {
-              return item;
-            } else if (item.name) {
-              return `${item.name} (new qty: ${item.new_quantity || item.quantity || 'updated'})`;
-            }
-            return 'Unknown item';
-          });
-          notifications.push(`🔄 Updated: ${updatedItems.join(', ')}`);
-        }
-        
+
         // Handle similar items found
         if (responseData.similar_items_found && responseData.similar_items_found.length > 0) {
-          const similarItems = responseData.similar_items_found.map((item: any) => 
+          const similarItems = responseData.similar_items_found.map((item: any) =>
             `${item.name} (${Math.round(item.similarity_score * 100)}% match)`
           );
           notifications.push(`🔍 Recognized: ${similarItems.join(', ')}`);
         }
-        
+
         // Show success notifications
         if (notifications.length > 0) {
-          onError(notifications.join('\n'));
+          onNotification(notifications.join('\n'));
         } else {
-          onError("Images processed successfully, but no items were detected.");
+          onNotification("Images processed successfully, but no items were detected.");
         }
-        
+
         // Handle any errors in the response
         if (responseData.errors && responseData.errors.length > 0) {
           const errorMessages = responseData.errors.map((error: any) => {
@@ -247,43 +256,131 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
             }
             return 'Unknown error';
           });
-          onError(`⚠️ Some issues occurred: ${errorMessages.join(', ')}`);
+          onNotification(`⚠️ Some issues occurred: ${errorMessages.join(', ')}`);
         }
-        
+
         // Refresh inventory and clear images
         await onInventoryUpdate();
         if (takeInImage) clearTakeInImage();
         if (takeOutImage) clearTakeOutImage();
-        
+
       } else {
-        // Check for the specific 'updated' error which actually means the item was added
-        const errorData = await response.json();
-        const errorMessage = errorData.error || 'Failed to process images';
-        
-        // If the error contains "updated", the item was likely added despite the error
-        if (errorMessage.includes('updated')) {
-          console.log("Item was likely added despite 'updated' error. Refreshing inventory.");
-          onError("✅ Item was added successfully (with minor backend notice)");
+        // Check for the specific 'updated' response which actually means the item was added
+        const responseData = await response.json();
+        const responseMessage = responseData.error || 'Failed to process images';
+
+        // If the response contains "updated", the item was likely added despite the error status
+        if (responseMessage.includes('updated')) {
+          console.log("Item was likely added despite 'updated' response. Refreshing inventory.");
+          onNotification("✅ Item was added successfully (with minor backend notice)");
           await onInventoryUpdate();
           if (takeInImage) clearTakeInImage();
           if (takeOutImage) clearTakeOutImage();
-        } else if (errorMessage.includes('similarity') || errorMessage.includes('threshold')) {
+        } else if (responseMessage.includes('similarity') || responseMessage.includes('threshold')) {
           // This is the case where no similar images were found, but we've asked the backend to store it
           console.log("No similar images found. Image should be added to the vector database.");
-          onError("✅ New image type detected and added to our database. Item identification might improve in future uploads.");
+          onNotification("✅ New image type detected and added to our database. Item identification might improve in future uploads.");
           await onInventoryUpdate();
           if (takeInImage) clearTakeInImage();
           if (takeOutImage) clearTakeOutImage();
         } else {
-          throw new Error(errorMessage);
+          throw new Error(responseMessage);
         }
       }
     } catch (err) {
       console.error('Error processing images:', err);
-      onError(err instanceof Error ? err.message : 'Failed to process images. Please try again.');
+      onNotification(err instanceof Error ? err.message : 'Failed to process images. Please try again.');
     } finally {
       setIsUploading(false);
     }
+  };
+
+  // Confirmation modal handlers
+  const handleConfirmUpdates = async () => {
+    try {
+      // Create success notification for confirmed updates
+      const updatedItems = pendingUpdates.map((item: any) => {
+        if (typeof item === 'string') {
+          return item;
+        } else if (item.name) {
+          return `${item.name} (new qty: ${item.new_quantity || item.quantity || 'updated'})`;
+        }
+        return 'Unknown item';
+      });
+      onNotification(`🔄 Updated: ${updatedItems.join(', ')}`);
+
+      // Refresh inventory and clear images
+      await onInventoryUpdate();
+      if (takeInImage) clearTakeInImage();
+      if (takeOutImage) clearTakeOutImage();
+
+      // Close modal and reset state
+      setShowConfirmationModal(false);
+      setPendingUpdates([]);
+      setCurrentImageData({ first: null, second: null });
+    } catch (err) {
+      console.error('Error confirming updates:', err);
+      onNotification('Failed to confirm updates. Please try again.');
+    }
+  };
+
+  const handleRejectUpdate = async (itemName: string) => {
+    try {
+      const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+
+      // Find the item in pending updates to get original quantity
+      const updateItem = pendingUpdates.find(item => item.name === itemName);
+      if (!updateItem) {
+        onNotification('Error: Could not find update information.');
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/inventory/reject-update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          item_name: itemName,
+          original_quantity: updateItem.old_quantity,
+          image_data: currentImageData.first ? currentImageData.first.split(',')[1] : null // Remove data:image/jpeg;base64, prefix
+        }),
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        onNotification(`✅ Created new item: ${responseData.new_item.name} and reverted ${responseData.reverted_item.name} to quantity ${responseData.reverted_item.quantity}`);
+
+        // Remove this item from pending updates
+        setPendingUpdates(prev => prev.filter(item => item.name !== itemName));
+
+        // If no more pending updates, close modal
+        const remainingUpdates = pendingUpdates.filter(item => item.name !== itemName);
+        if (remainingUpdates.length === 0) {
+          setShowConfirmationModal(false);
+          setPendingUpdates([]);
+          setCurrentImageData({ first: null, second: null });
+        }
+
+        // Refresh inventory
+        await onInventoryUpdate();
+        if (takeInImage) clearTakeInImage();
+        if (takeOutImage) clearTakeOutImage();
+      } else {
+        const errorData = await response.json();
+        onNotification(`Error rejecting update: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Error rejecting update:', err);
+      onNotification('Failed to reject update. Please try again.');
+    }
+  };
+
+  const handleCloseConfirmationModal = () => {
+    setShowConfirmationModal(false);
+    setPendingUpdates([]);
+    setCurrentImageData({ first: null, second: null });
+    // Don't refresh inventory here - updates remain as they were
   };
 
   return (
@@ -301,19 +398,19 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
             onDrop={handleTakeInDrop}
             onClick={handleTakeInClick}
           >
-            <input 
-              type="file" 
+            <input
+              type="file"
               ref={takeInFileInputRef}
               onChange={handleTakeInFileChange}
               accept="image/*"
               className="file-input"
             />
-            
+
             {takeInPreview ? (
               <div className="preview-container" onClick={(e) => e.stopPropagation()}>
-                <img 
-                  src={takeInPreview} 
-                  alt="Take in preview" 
+                <img
+                  src={takeInPreview}
+                  alt="Take in preview"
                   className="preview-image"
                 />
                 <button
@@ -353,19 +450,19 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
             onDrop={handleTakeOutDrop}
             onClick={handleTakeOutClick}
           >
-            <input 
-              type="file" 
+            <input
+              type="file"
               ref={takeOutFileInputRef}
               onChange={handleTakeOutFileChange}
               accept="image/*"
               className="file-input"
             />
-            
+
             {takeOutPreview ? (
               <div className="preview-container" onClick={(e) => e.stopPropagation()}>
-                <img 
-                  src={takeOutPreview} 
-                  alt="Take out preview" 
+                <img
+                  src={takeOutPreview}
+                  alt="Take out preview"
                   className="preview-image"
                 />
                 <button
@@ -410,23 +507,23 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
       <div className="manual-add-container">
         <h4>Manual Add Item</h4>
         <form onSubmit={onAddItemManually} className="manual-add-form">
-          <input 
-            type="text" 
-            value={newItemName} 
-            onChange={(e) => setNewItemName(e.target.value)} 
+          <input
+            type="text"
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
             placeholder="Item name (e.g., Apple)"
             required
             className="manual-input"
           />
-          <input 
+          <input
             type="text"
-            value={newItemQuantity} 
-            onChange={(e) => setNewItemQuantity(e.target.value)} 
+            value={newItemQuantity}
+            onChange={(e) => setNewItemQuantity(e.target.value)}
             placeholder="Quantity (e.g., 2)"
             required
             className="manual-input"
           />
-          <button 
+          <button
             type="submit"
             className="manual-add-btn"
           >
@@ -434,6 +531,15 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
           </button>
         </form>
       </div>
+
+      {/* Update Confirmation Modal */}
+      <UpdateConfirmationModal
+        updatedItems={pendingUpdates}
+        isVisible={showConfirmationModal}
+        onConfirm={handleConfirmUpdates}
+        onReject={handleRejectUpdate}
+        onClose={handleCloseConfirmationModal}
+      />
     </div>
   );
 }; 

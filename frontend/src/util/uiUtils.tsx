@@ -1,3 +1,5 @@
+// uiUtils.tsx - UI-related utility functions
+
 import React from 'react';
 import { ExpirationAlerts } from '../types';
 
@@ -5,11 +7,11 @@ import { ExpirationAlerts } from '../types';
 export const renderExpirationBanner = (
   expirationAlerts: ExpirationAlerts,
   toggleExpirationAlerts: () => void
-) => {
+): React.ReactElement | null => {
   const hasAlerts = expirationAlerts.warning_3_days.length > 0 || expirationAlerts.warning_week.length > 0;
-  
+
   if (!hasAlerts) return null;
-  
+
   return (
     <div className="expiration-banner">
       <div className="expiration-banner-header">
@@ -19,7 +21,7 @@ export const renderExpirationBanner = (
         </h3>
         <button className="expiration-banner-close" onClick={toggleExpirationAlerts}>×</button>
       </div>
-      
+
       {expirationAlerts.warning_3_days.length > 0 && (
         <div className="expiration-alert-group critical">
           <h4>Critical: Expiring in 3 days or less</h4>
@@ -33,7 +35,7 @@ export const renderExpirationBanner = (
           </ul>
         </div>
       )}
-      
+
       {expirationAlerts.warning_week.length > 0 && (
         <div className="expiration-alert-group warning">
           <h4>Warning: Expiring this week</h4>

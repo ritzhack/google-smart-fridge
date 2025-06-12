@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Recipe, InventoryItem } from '../../types';
+import { Recipe } from '../../types';
 import { getRecipeImage } from './util/recipeImageUtils';
 import './RecipeSuggestions.css';
 
@@ -42,7 +42,7 @@ export const RecipeSuggestions: React.FC<RecipeSuggestionsProps> = ({
   return (
     <div className="recipe-suggestions">
       <h2>Recipe Suggestions</h2>
-      
+
       {isLoading && recipes.length === 0 ? (
         <div className="loading-state">
           <p>Generating recipes based on your ingredients...</p>
@@ -54,15 +54,15 @@ export const RecipeSuggestions: React.FC<RecipeSuggestionsProps> = ({
       ) : (
         <div className="recipe-list">
           {recipes.map((recipe, index) => (
-            <div 
-              key={recipe._id || index} 
+            <div
+              key={recipe._id || index}
               className="recipe-card"
               onClick={() => handleRecipeClick(recipe)}
             >
-              <img 
-                src={getRecipeImage(recipe)} 
-                alt={recipe.name} 
-                className="recipe-image" 
+              <img
+                src={getRecipeImage(recipe)}
+                alt={recipe.name}
+                className="recipe-image"
               />
               <div className="recipe-details">
                 <h3 className="recipe-name">{recipe.name}</h3>
@@ -81,17 +81,17 @@ export const RecipeSuggestions: React.FC<RecipeSuggestionsProps> = ({
               </div>
             </div>
           ))}
-          
-          <button 
-            className="refresh-button" 
-            onClick={onGenerateRecipes} 
+
+          <button
+            className="refresh-button"
+            onClick={onGenerateRecipes}
             disabled={isLoading}
           >
             {isLoading ? "Finding more recipes..." : "Refresh Recipes"}
           </button>
         </div>
       )}
-      
+
       {/* Detailed recipe view */}
       {selectedRecipe && (
         <div className="selected-recipe">
@@ -99,13 +99,13 @@ export const RecipeSuggestions: React.FC<RecipeSuggestionsProps> = ({
             <button className="back-button" onClick={handleBackClick}>Back</button>
             <h2>{selectedRecipe.name}</h2>
           </div>
-          
-          <img 
-            src={getRecipeImage(selectedRecipe)} 
-            alt={selectedRecipe.name} 
-            className="recipe-detail-image" 
+
+          <img
+            src={getRecipeImage(selectedRecipe)}
+            alt={selectedRecipe.name}
+            className="recipe-detail-image"
           />
-          
+
           <div className="recipe-info">
             <div className="recipe-time-calories">
               <div className="info-item">
@@ -117,23 +117,30 @@ export const RecipeSuggestions: React.FC<RecipeSuggestionsProps> = ({
                 <span className="info-value">{selectedRecipe.nutrition?.calories || 'N/A'} kcal</span>
               </div>
             </div>
-            
+
             <div className="recipe-ingredients">
               <h3>Ingredients</h3>
               <ul>
-                {Array.isArray(selectedRecipe.ingredients) ? 
+                {Array.isArray(selectedRecipe.ingredients) ?
                   selectedRecipe.ingredients.map((ingredient, i) => (
                     <li key={i}>{ingredient}</li>
-                  )) : 
+                  )) :
                   <li>{selectedRecipe.ingredients}</li>
                 }
               </ul>
             </div>
-            
+
             <div className="recipe-instructions">
               <h3>Instructions</h3>
               {typeof selectedRecipe.instructions === 'string' ? (
-                <p>{selectedRecipe.instructions}</p>
+                <ol>
+                  {selectedRecipe.instructions
+                    .split(/(?=\d+\.)/)
+                    .filter(step => step.trim())
+                    .map((step: string, index: number) => (
+                      <li key={index}>{step.trim()}</li>
+                    ))}
+                </ol>
               ) : Array.isArray(selectedRecipe.instructions) ? (
                 <ol>
                   {selectedRecipe.instructions.map((step: string, index: number) => (
@@ -176,7 +183,7 @@ export const RecipeSuggestions: React.FC<RecipeSuggestionsProps> = ({
                 </div>
               </div>
             )}
-            
+
             {selectedRecipe.health_assessment && (
               <div className="health-assessment">
                 <h3>Health Assessment</h3>

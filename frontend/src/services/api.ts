@@ -76,6 +76,14 @@ export const deleteFavoriteRecipe = (recipeId: string): Promise<AxiosResponse<vo
   return apiClient.delete(`/recipes/favorites/${recipeId}`);
 };
 
+export const rejectUpdateAndCreateNew = (data: {
+  item_name: string;
+  original_quantity: number;
+  image_data?: string | null;
+}): Promise<AxiosResponse<any>> => {
+  return apiClient.post('/inventory/reject-update', data);
+};
+
 export const checkExpirations = (): Promise<AxiosResponse<ExpirationAlerts>> => {
   return apiClient.get('/notifications/check-expirations');
 }; 

@@ -2,9 +2,8 @@ import React from "react";
 import { ImageProcessorStylized } from "./ImageProcessorStylized";
 
 interface FridgeSimulatorProps {
-  error: string | null;
   onInventoryUpdate: () => Promise<void>;
-  onError: (error: string | null) => void;
+  onNotification: (message: string | null) => void;
   newItemName: string;
   setNewItemName: (name: string) => void;
   newItemQuantity: string;
@@ -13,9 +12,8 @@ interface FridgeSimulatorProps {
 }
 
 export const FridgeSimulator: React.FC<FridgeSimulatorProps> = ({
-  error,
   onInventoryUpdate,
-  onError,
+  onNotification,
   newItemName,
   setNewItemName,
   newItemQuantity,
@@ -31,7 +29,7 @@ export const FridgeSimulator: React.FC<FridgeSimulatorProps> = ({
       {/* Image Upload Section */}
       <ImageProcessorStylized
         onInventoryUpdate={onInventoryUpdate}
-        onError={onError}
+        onNotification={onNotification}
         newItemName={newItemName}
         setNewItemName={setNewItemName}
         newItemQuantity={newItemQuantity}

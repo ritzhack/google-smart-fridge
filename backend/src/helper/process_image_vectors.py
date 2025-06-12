@@ -95,7 +95,8 @@ def process_image_pair(first_image_base64, second_image_base64=None):
                     results["updated"] = results.get("updated", [])
                     results["updated"].append({
                         "name": item_name,
-                        "new_quantity": new_quantity
+                        "new_quantity": new_quantity,
+                        "old_quantity": current_quantity  # Include old quantity for comparison
                     })
                     print(f"Updated {item_name} quantity to {new_quantity}")
                 else:

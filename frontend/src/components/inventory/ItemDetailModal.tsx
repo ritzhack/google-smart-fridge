@@ -1,24 +1,7 @@
 import React from "react";
 import { InventoryItem } from "../../types";
 import { getCategoryEmoji } from "../../util/foodUtils";
-
-// Helper function to handle image data
-const getImageSrc = (imageData: string | undefined): string | undefined => {
-  if (!imageData) return undefined;
-  
-  // If it's already a URL that starts with http
-  if (imageData.startsWith('http')) {
-    return imageData;
-  }
-  
-  // If it's a base64 string that doesn't have the data URL prefix
-  if (!imageData.startsWith('data:')) {
-    return `data:image/jpeg;base64,${imageData}`;
-  }
-  
-  // If it already has the data URL prefix
-  return imageData;
-};
+import { getImageSrc } from "../../util/imageUtils";
 
 interface ItemDetailModalProps {
   selectedItem: InventoryItem | null;
@@ -54,10 +37,10 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
         <div className="detail-card-header">
           <div className="detail-card-icon">
             {selectedItem.image_data ? (
-              <img 
-                src={getImageSrc(selectedItem.image_data)} 
-                alt={selectedItem.name} 
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+              <img
+                src={getImageSrc(selectedItem.image_data)}
+                alt={selectedItem.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             ) : (
               <span>{getCategoryEmoji(selectedItem.category || 'general')}</span>
@@ -103,7 +86,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
               <span className="detail-value">{selectedItem.category || 'General'}</span>
             )}
           </div>
-          
+
           {/* Quantity */}
           <div className="detail-info-row">
             <span className="detail-label">Quantity</span>
@@ -120,7 +103,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
               <span className="detail-value">{selectedItem.quantity}</span>
             )}
           </div>
-          
+
           {/* Expiration Date */}
           <div className="detail-info-row">
             <span className="detail-label">Expires</span>
@@ -138,7 +121,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
               </span>
             )}
           </div>
-          
+
           {/* Show error message if update failed */}
           {updateError && (
             <div className="detail-update-error">
@@ -149,13 +132,13 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
         <div className="detail-card-actions">
           {isEditing ? (
             <>
-              <button 
+              <button
                 className="detail-action-btn cancel-btn"
                 onClick={onToggleEdit}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="detail-action-btn save-btn"
                 onClick={onSaveChanges}
                 disabled={isSaving}
@@ -165,13 +148,13 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
             </>
           ) : (
             <>
-              <button 
+              <button
                 className="detail-action-btn remove-btn"
                 onClick={() => onRemoveItem(selectedItem)}
               >
                 Remove Item
               </button>
-              <button 
+              <button
                 className="detail-action-btn edit-btn"
                 onClick={onToggleEdit}
               >
