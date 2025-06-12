@@ -240,7 +240,9 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
                         height: '80px', 
                         objectFit: 'cover', 
                         borderRadius: '12px',
-                        border: '2px solid #f0f0f0'
+                        border: '2px solid #f0f0f0',
+                        display: 'block',
+                        margin: '0 auto'
                       }}
                     />
                   ) : (

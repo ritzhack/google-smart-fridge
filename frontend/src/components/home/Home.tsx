@@ -65,10 +65,10 @@ export const Home: React.FC<HomeProps> = ({
           
           {!expandedFridge ? (
             <div className="food-items-container">
-              <div className="food-items-grid">
+              <div className="food-items-grid food-items-horizontal-scroll">
                 {inventory.length > 0 ? (
-                  // Flatten all items from all categories and take the first 8
-                  inventory.slice(0, 8).map(item => (
+                  // Show all items with horizontal scrolling instead of limiting to 8
+                  inventory.map(item => (
                     <div key={item.id || item._id} className="food-item" onClick={() => onFoodItemClick(item)}>
                       <div className="food-icon">
                         {renderFoodIcon(item)}
@@ -133,11 +133,11 @@ export const Home: React.FC<HomeProps> = ({
         {showExpirationAlerts && renderExpirationBanner(expirationAlerts, onToggleExpirationAlerts)}
       </div>
       
-      <RecipeSuggestButton
+      {(!showRecipeList || recipes.length ==0) && <RecipeSuggestButton
         inventory={inventory}
         isLoading={isLoadingRecipes}
         onSuggestRecipes={onGenerateRecipes}
-      />
+      />}
       
       {/* Show recipe suggestions below if recipes are available and showRecipeList is true */}
       {showRecipeList && recipes.length > 0 && (

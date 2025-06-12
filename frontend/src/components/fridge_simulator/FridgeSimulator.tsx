@@ -29,7 +29,6 @@ export const FridgeSimulator: React.FC<FridgeSimulatorProps> = ({
       </div>
       
       {/* Image Upload Section */}
-      {error && <div className="error-message scan-panel-error">{error}</div>}
       <ImageProcessorStylized
         onInventoryUpdate={onInventoryUpdate}
         onError={onError}

@@ -247,6 +247,7 @@ body {
   flex: 1;
   padding: 0 24px 80px;
   overflow-y: auto;
+  position: relative;
 }
 
 /* Temperature Display */
@@ -452,6 +453,56 @@ body {
 
 .food-items-grid::-webkit-scrollbar {
   display: none;
+}
+
+/* Enhanced horizontal scrolling for all inventory items */
+.food-items-horizontal-scroll {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  padding-bottom: 8px;
+}
+
+.food-items-horizontal-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.food-items-horizontal-scroll::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.food-items-horizontal-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.food-items-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Add scroll indicators */
+.food-items-horizontal-scroll::before,
+.food-items-horizontal-scroll::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 8px;
+  width: 20px;
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.food-items-horizontal-scroll::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(255,255,255,0.8), transparent);
+}
+
+.food-items-horizontal-scroll::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(255,255,255,0.8), transparent);
 }
 
 .food-item {
@@ -1808,6 +1859,86 @@ body {
 .critical .exp-item-days, .warning .exp-item-days {
   background-color: #f8fafc;
   color: var(--text-secondary);
+}
+
+/* Notification styles */
+.notification-message {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 500px;
+  width: auto;
+  animation: slideInDown 0.3s ease-out;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.notification-message.success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border-left: 4px solid #047857;
+}
+
+.notification-message.error {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border-left: 4px solid #b91c1c;
+}
+
+.notification-content {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.notification-content div {
+  margin-bottom: 4px;
+}
+
+.notification-content div:last-child {
+  margin-bottom: 0;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.notification-close:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Ensure notifications appear above other content */
+.app-content {
+  position: relative;
 }
 
 

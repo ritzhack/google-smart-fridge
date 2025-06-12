@@ -28,6 +28,7 @@ function App() {
   const [isLoadingInventory, setIsLoadingInventory] = useState<boolean>(false);
   const [isLoadingRecipes, setIsLoadingRecipes] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   
   // Form state
   const [newItemName, setNewItemName] = useState<string>("");
@@ -59,6 +60,16 @@ function App() {
   useEffect(() => {
     fetchInventory();
   }, []);
+
+  // Auto-dismiss notifications after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   // Check expirations when inventory changes
   useEffect(() => {
@@ -228,6 +239,28 @@ function App() {
   const toggleFridgeExpand = () => setExpandedFridge(!expandedFridge);
   const toggleExpirationAlerts = () => setShowExpirationAlerts(!showExpirationAlerts);
 
+  // Notification handlers
+  const handleSuccess = (message: string) => {
+    setNotification({ message, type: 'success' });
+    setError(null); // Clear any existing errors
+  };
+
+  const handleError = (message: string | null) => {
+    if (message) {
+      // Check if this is actually a success message disguised as an error
+      if (message.includes('✅') || message.includes('🔄') || message.includes('🔍')) {
+        setNotification({ message, type: 'success' });
+        setError(null);
+      } else {
+        setError(message);
+        setNotification(null);
+      }
+    } else {
+      setError(null);
+      setNotification(null);
+    }
+  };
+
   // Render content based on active tab
   const renderContent = () => {
     switch(activeTab) {
@@ -276,7 +309,7 @@ function App() {
       <FridgeSimulator
         error={error}
         onInventoryUpdate={fetchInventory}
-        onError={setError}
+        onError={handleError}
         newItemName={newItemName}
         setNewItemName={setNewItemName}
         newItemQuantity={newItemQuantity}
@@ -293,6 +326,21 @@ function App() {
         
         <main className="app-content">
           {error && <div className="error-message">{error}</div>}
+          {notification && (
+            <div className={`notification-message ${notification.type}`}>
+              <div className="notification-content">
+                {notification.message.split('\n').map((line, index) => (
+                  <div key={index}>{line}</div>
+                ))}
+              </div>
+              <button 
+                className="notification-close"
+                onClick={() => setNotification(null)}
+              >
+                ×
+              </button>
+            </div>
+          )}
           {renderContent()}
         </main>
         

@@ -49,7 +49,7 @@ def process_image_pair(first_image_base64, second_image_base64=None):
     Returns:
         dict: Results of processing
     """
-    results = {"added": [], "removed": [], "errors": []}
+    results = {"added": [], "removed": [], "errors": [], "updated": []}
     db = get_db_instance()
     vector_service = ImageVectorService()
     
@@ -69,22 +69,55 @@ def process_image_pair(first_image_base64, second_image_base64=None):
                 item_name = similar_item.get("name")
                 expiration_period = similar_item.get("expirationPeriod", 7)  # Default to 7 days
                 
-                # Calculate expiration date
-                expiration_date = datetime.utcnow() + timedelta(days=expiration_period)
+                # Check if item already exists in inventory
+                existing_item = db.items.find_one({"name": item_name.lower()})
                 
-                # Add to items collection with image data
-                new_item = Item(
-                    name=item_name.lower(),
-                    quantity="1",
-                    expiration_date=expiration_date.isoformat(),
-                    image_data=first_image_base64  # Store the base64 image data
-                )
-                item_dict = new_item.to_dict()
-                if "_id" in item_dict:
-                    del item_dict["_id"]
-                
-                db.items.insert_one(item_dict)
-                results["added"].append(item_name)
+                if existing_item:
+                    # Item exists in inventory - update quantity
+                    current_quantity = existing_item.get("quantity", 0)
+                    # Convert to int if it's stored as string
+                    if isinstance(current_quantity, str):
+                        try:
+                            current_quantity = int(current_quantity)
+                        except (ValueError, TypeError):
+                            current_quantity = 0
+                    new_quantity = current_quantity + 1
+                    
+                    db.items.update_one(
+                        {"_id": existing_item["_id"]},
+                        {
+                            "$set": {
+                                "quantity": new_quantity,
+                                "date_added": datetime.utcnow()
+                            }
+                        }
+                    )
+                    results["updated"] = results.get("updated", [])
+                    results["updated"].append({
+                        "name": item_name,
+                        "new_quantity": new_quantity
+                    })
+                    print(f"Updated {item_name} quantity to {new_quantity}")
+                else:
+                    # Item not in inventory - create new item
+                    print(f"Similar image found for {item_name} but not in inventory, creating new item")
+                    
+                    # Calculate expiration date
+                    expiration_date = datetime.utcnow() + timedelta(days=expiration_period)
+                    
+                    # Add to items collection with image data
+                    new_item = Item(
+                        name=item_name.lower(),
+                        quantity=1,
+                        expiration_date=expiration_date.isoformat(),
+                        image_data=first_image_base64  # Store the base64 image data
+                    )
+                    item_dict = new_item.to_dict()
+                    if "_id" in item_dict:
+                        del item_dict["_id"]
+                    
+                    db.items.insert_one(item_dict)
+                    results["added"].append(item_name)
             else:
                 # Image not in database, let Perplexity process it
                 print("Image not found in database, use Perplexity for identification")

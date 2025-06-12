@@ -190,11 +190,71 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
         body: formData,
       });
 
-      let successfulProcess = false;
-
       if (response.ok) {
-        // Normal successful case
-        successfulProcess = true;
+        const responseData = await response.json();
+        
+        // Create notification messages for successful operations
+        const notifications = [];
+        
+        // Handle added items
+        if (responseData.added && responseData.added.length > 0) {
+          const addedItems = responseData.added.map((item: any) => {
+            if (typeof item === 'string') {
+              return item;
+            } else if (item.name) {
+              return `${item.name} (qty: ${item.quantity || 1})`;
+            }
+            return 'Unknown item';
+          });
+          notifications.push(`✅ Added: ${addedItems.join(', ')}`);
+        }
+        
+        // Handle updated items
+        if (responseData.updated && responseData.updated.length > 0) {
+          const updatedItems = responseData.updated.map((item: any) => {
+            if (typeof item === 'string') {
+              return item;
+            } else if (item.name) {
+              return `${item.name} (new qty: ${item.new_quantity || item.quantity || 'updated'})`;
+            }
+            return 'Unknown item';
+          });
+          notifications.push(`🔄 Updated: ${updatedItems.join(', ')}`);
+        }
+        
+        // Handle similar items found
+        if (responseData.similar_items_found && responseData.similar_items_found.length > 0) {
+          const similarItems = responseData.similar_items_found.map((item: any) => 
+            `${item.name} (${Math.round(item.similarity_score * 100)}% match)`
+          );
+          notifications.push(`🔍 Recognized: ${similarItems.join(', ')}`);
+        }
+        
+        // Show success notifications
+        if (notifications.length > 0) {
+          onError(notifications.join('\n'));
+        } else {
+          onError("Images processed successfully, but no items were detected.");
+        }
+        
+        // Handle any errors in the response
+        if (responseData.errors && responseData.errors.length > 0) {
+          const errorMessages = responseData.errors.map((error: any) => {
+            if (typeof error === 'string') {
+              return error;
+            } else if (error.name && error.error) {
+              return `${error.name}: ${error.error}`;
+            }
+            return 'Unknown error';
+          });
+          onError(`⚠️ Some issues occurred: ${errorMessages.join(', ')}`);
+        }
+        
+        // Refresh inventory and clear images
+        await onInventoryUpdate();
+        if (takeInImage) clearTakeInImage();
+        if (takeOutImage) clearTakeOutImage();
+        
       } else {
         // Check for the specific 'updated' error which actually means the item was added
         const errorData = await response.json();
@@ -203,25 +263,20 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
         // If the error contains "updated", the item was likely added despite the error
         if (errorMessage.includes('updated')) {
           console.log("Item was likely added despite 'updated' error. Refreshing inventory.");
-          successfulProcess = true;
-          onError("Item was added, but there was a minor backend error: " + errorMessage);
+          onError("✅ Item was added successfully (with minor backend notice)");
+          await onInventoryUpdate();
+          if (takeInImage) clearTakeInImage();
+          if (takeOutImage) clearTakeOutImage();
         } else if (errorMessage.includes('similarity') || errorMessage.includes('threshold')) {
           // This is the case where no similar images were found, but we've asked the backend to store it
           console.log("No similar images found. Image should be added to the vector database.");
-          successfulProcess = true;
-          onError("New image type detected and added to our database. Item identification might improve in future uploads.");
+          onError("✅ New image type detected and added to our database. Item identification might improve in future uploads.");
+          await onInventoryUpdate();
+          if (takeInImage) clearTakeInImage();
+          if (takeOutImage) clearTakeOutImage();
         } else {
           throw new Error(errorMessage);
         }
-      }
-
-      if (successfulProcess) {
-        // Fetch updated inventory if the process was successful or had the specific error
-        await onInventoryUpdate();
-        
-        // Clear the images and previews
-        if (takeInImage) clearTakeInImage();
-        if (takeOutImage) clearTakeOutImage();
       }
     } catch (err) {
       console.error('Error processing images:', err);

@@ -4,6 +4,7 @@ from src.db_connector import get_db_instance
 from src.models.item import Item
 from src.services.ai_service import AIService
 from src.services.image_processing_service import ImageProcessingService
+from src.services.image_vector_service import ImageVectorService
 from src.helper.identify_object_from_picutre import identify_object_from_image
 from src.helper.process_inventory import process_perplexity_response
 from src.helper.process_image_vectors import process_image_pair, store_image_vector
@@ -12,11 +13,15 @@ import datetime
 import traceback
 import sys
 import base64
+import tempfile
+import os
+from PIL import Image
 
 inventory_bp = Blueprint("inventory_bp", __name__, url_prefix="/api/inventory")
 db = get_db_instance()
 ai_service = AIService()
 image_service = ImageProcessingService()
+vector_service = ImageVectorService()
 
 @inventory_bp.route("/debug", methods=["GET"])
 def debug_connection():
@@ -155,15 +160,201 @@ def delete_item(item_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Placeholder for simulating image processing to add/remove items
+# Enhanced image processing route with similarity checking
 @inventory_bp.route("/process-image", methods=["POST"])
 def process_fridge_image():
-    # This is a conceptual endpoint. 
-    # In a real scenario, this would receive an image, use image_service to identify items,
-    # then use ai_service for expiration, and update the DB.
-    # For now, it can simulate this flow based on mock data.
+    """
+    Enhanced image processing endpoint that checks for similar images before adding new items.
+    Accepts either simulated data or actual image data with similarity checking.
+    """
+    try:
+        # Check if this is a file upload or JSON data
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # Handle file upload with image similarity checking
+            return _process_image_with_similarity_check()
+        else:
+            # Handle JSON data (backward compatibility for simulation)
+            return _process_simulated_image()
+            
+    except Exception as e:
+        print(f"Error in process_fridge_image: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+def _process_image_with_similarity_check():
+    """Process uploaded image with similarity checking."""
+    if 'image' not in request.files:
+        return jsonify({"error": "No image file provided"}), 400
+        
+    image_file = request.files['image']
+    if image_file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    # Save uploaded image to temporary file
+    temp_image_path = None
+    results = {"added": [], "updated": [], "errors": [], "similar_items_found": []}
+    
+    try:
+        # Create temporary file for the uploaded image
+        temp_image_file = tempfile.NamedTemporaryFile(prefix="process_", suffix=".jpg", delete=False)
+        temp_image_path = temp_image_file.name
+        temp_image_file.close()
+        
+        # Save uploaded image to temporary file
+        image_file.save(temp_image_path)
+        
+        # Search for similar images in the database
+        similar_images = vector_service.search_similar_images(
+            temp_image_path, 
+            limit=3, 
+            threshold=0.85  # 85% similarity threshold
+        )
+        
+        if similar_images:
+            # Similar image(s) found - update quantities instead of adding new items
+            print(f"Found {len(similar_images)} similar image(s) in database")
+            
+            for similar_item in similar_images:
+                item_name = similar_item.get("name")
+                similarity_score = similar_item.get("score", 0)
+                
+                results["similar_items_found"].append({
+                    "name": item_name,
+                    "similarity_score": round(similarity_score, 4)
+                })
+                
+                # Find the item in the inventory and update quantity
+                item_doc = db.items.find_one({"name": item_name.lower()})
+                if item_doc:
+                    # Update quantity (increment by 1) - ensure quantity is treated as integer
+                    current_quantity = item_doc.get("quantity", 0)
+                    # Convert to int if it's stored as string
+                    if isinstance(current_quantity, str):
+                        try:
+                            current_quantity = int(current_quantity)
+                        except (ValueError, TypeError):
+                            current_quantity = 0
+                    new_quantity = current_quantity + 1
+                    update_result = db.items.update_one(
+                        {"_id": item_doc["_id"]},
+                        {
+                            "$set": {
+                                "quantity": new_quantity,
+                                "date_added": datetime.datetime.utcnow()
+                            }
+                        }
+                    )
+                    
+                    if update_result.modified_count > 0:
+                        results["updated"].append({
+                            "name": item_name,
+                            "new_quantity": new_quantity,
+                            "similarity_score": round(similarity_score, 4),
+                            "action": "quantity_updated"
+                        })
+                        print(f"Updated quantity for {item_name} to {new_quantity}")
+                    else:
+                        results["errors"].append({
+                            "name": item_name,
+                            "action": "update_quantity",
+                            "error": "Failed to update quantity in database"
+                        })
+                else:
+                    # Similar image found but item not in inventory - create new item using original approach
+                    print(f"Similar image found for {item_name} but not in inventory, creating new item")
+                    
+                    # Get expiration period from similar item metadata
+                    expiration_period = similar_item.get("expirationPeriod", 7)  # Default to 7 days
+                    expiration_date = datetime.datetime.utcnow() + datetime.timedelta(days=expiration_period)
+                    
+                    # Create new item with simple approach
+                    new_item = Item(
+                        name=item_name.lower(),
+                        quantity=1,
+                        expiration_date=expiration_date.isoformat()
+                    )
+                    item_dict = new_item.to_dict()
+                    if "_id" in item_dict:
+                        del item_dict["_id"]
+                    
+                    try:
+                        db.items.insert_one(item_dict)
+                        results["added"].append({
+                            "name": item_name,
+                            "quantity": 1,
+                            "similarity_score": round(similarity_score, 4),
+                            "action": "new_item_from_similar"
+                        })
+                        print(f"Created new item {item_name} with quantity 1")
+                    except Exception as e:
+                        results["errors"].append({
+                            "name": item_name,
+                            "action": "create_item",
+                            "error": str(e)
+                        })
+        else:
+            # No similar images found - identify items and add as new
+            print("No similar images found, processing as new items")
+            
+            # Use AI to identify items in the image
+            image_data = None
+            with open(temp_image_path, "rb") as f:
+                image_data = f.read()
+            
+            base64_image = base64.b64encode(image_data).decode('utf-8')
+            
+            # Use Vertex AI to identify objects
+            perplexity_response = identify_object_from_image(
+                image_url=f"data:image/jpeg;base64,{base64_image}"
+            )
+            
+            # Process the AI response to get identified items
+            ai_results, _ = process_perplexity_response(perplexity_response, base64_image)
+            
+            if "added" in ai_results:
+                results["added"].extend(ai_results["added"])
+                
+                # Store image vectors for newly identified items
+                for item_name in ai_results["added"]:
+                    try:
+                        # Find the item in the database to get its expiration date
+                        item_doc = db.items.find_one({"name": item_name.lower()})
+                        if item_doc:
+                            # Calculate expiration period in days
+                            exp_date = datetime.datetime.fromisoformat(item_doc.get("expiration_date"))
+                            current_date = datetime.datetime.utcnow()
+                            expiration_period = max(1, (exp_date - current_date).days)
+                            
+                            # Store the image vector
+                            store_image_vector(temp_image_path, item_name, expiration_period)
+                            print(f"Stored image vector for new item: {item_name}")
+                    except Exception as e:
+                        print(f"Error storing vector for {item_name}: {str(e)}")
+                        results["errors"].append({
+                            "name": item_name,
+                            "action": "store_vector",
+                            "error": str(e)
+                        })
+            
+            if "errors" in ai_results:
+                results["errors"].extend(ai_results["errors"])
+                
+    except Exception as e:
+        print(f"Error processing image with similarity check: {str(e)}")
+        results["errors"].append({
+            "action": "process_image",
+            "error": str(e)
+        })
+    finally:
+        # Clean up temporary file
+        if temp_image_path and os.path.exists(temp_image_path):
+            os.unlink(temp_image_path)
+    
+    return jsonify(results), 200
+
+def _process_simulated_image():
+    """Process simulated image data (backward compatibility)."""
     data = request.get_json()
-    image_identifier = data.get("image_identifier", "default_simulated_items") # e.g., "fridge_full.jpg" or a list of items
+    image_identifier = data.get("image_identifier", "default_simulated_items")
 
     # 1. Get current items from DB (simulating previous state)
     try:

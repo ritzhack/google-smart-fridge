@@ -93,7 +93,11 @@ def process_ai_response(ai_response, image_data=None):
                         
                     db.items.insert_one(item_dict)
                     print(f"DEBUG: Added new item {item_name}")
-                    results["added"].append(item_name)
+                    results["added"].append({
+                        "name": item_name,
+                        "quantity": count,
+                        "action": "new_item_from_ai"
+                    })
                 except Exception as e:
                     print(f"DEBUG: Error adding new item {item_name}: {str(e)}")
                     results["errors"].append({
