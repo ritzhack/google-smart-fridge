@@ -27,7 +27,7 @@ export const FridgeSimulator: React.FC<FridgeSimulatorProps> = ({
       <div className="scan-panel-header">
         <h2>Fridge Simulator</h2>
       </div>
-      
+
       {/* Image Upload Section */}
       <ImageProcessorStylized
         onInventoryUpdate={onInventoryUpdate}
