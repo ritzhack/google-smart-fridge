@@ -243,7 +243,7 @@ function App() {
   const handleNotification = (message: string | null) => {
     if (message) {
       // Check if this is actually a success message disguised as an error
-      if (message.includes('✅') || message.includes('🔄') || message.includes('🔍')) {
+      if (message.includes('✅') || message.includes('🔄') || message.includes('🔍') || message.includes('❌')) {
         setNotification({ message, type: 'success' });
         setError(null);
       } else {

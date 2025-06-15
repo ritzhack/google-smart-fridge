@@ -1,0 +1,23 @@
+.quantity-input {
+    width: 60px;
+    padding: 4px 8px;
+    margin: 0 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    text-align: center;
+    background-color: #fff;
+    transition: border-color 0.2s ease;
+}
+
+.quantity-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.quantity-input::-webkit-inner-spin-button,
+.quantity-input::-webkit-outer-spin-button {
+    opacity: 1;
+    height: 24px;
+} 

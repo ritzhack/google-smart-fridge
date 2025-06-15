@@ -399,91 +399,6 @@ def _process_simulated_image():
             
     return jsonify(results), 200
 
-@inventory_bp.route("/upload-image", methods=["POST"])
-def upload_image():
-    """
-    Handles image upload and processes using vector search and/or Perplexity AI.
-    
-    Request can include:
-    - 'image': The first image (adding items to fridge)
-    - 'second_image': Optional second image (removing items from fridge)
-    """
-    try:
-        if 'image' not in request.files:
-            return jsonify({"error": "No image file provided"}), 400
-            
-        # Get first image (adding to fridge)
-        first_image_file = request.files['image']
-        if first_image_file.filename == '':
-            return jsonify({"error": "No selected file"}), 400
-
-        # Read the first image file and convert to base64
-        first_image_data = first_image_file.read()
-        first_base64_image = base64.b64encode(first_image_data).decode('utf-8')
-        
-        # Get optional second image (removing from fridge)
-        second_base64_image = None
-        if 'second_image' in request.files:
-            second_image_file = request.files['second_image']
-            if second_image_file.filename != '':
-                second_image_data = second_image_file.read()
-                second_base64_image = base64.b64encode(second_image_data).decode('utf-8')
-        
-        print("Processing image pair...")
-        results = process_image_pair(first_base64_image, second_base64_image)
-        
-        # Check if we need to use Perplexity for the first image
-        if "need_perplexity" in results:
-            temp_image_path = results.pop("need_perplexity")
-            
-            print("Using Vertex AI to identify objects in the image...")
-            perplexity_response = identify_object_from_image(image_url=f"data:image/jpeg;base64,{first_base64_image}")
-            
-            # Process the response
-            perplexity_results, status_code = process_perplexity_response(perplexity_response, first_base64_image)
-            
-            # Ensure all required keys exist in results before merging
-            for key in ["added", "updated", "errors"]:
-                if key not in results:
-                    results[key] = []
-                if key in perplexity_results:
-                    results[key].extend(perplexity_results.get(key, []))
-            
-            # Store image vectors for newly identified items
-            if "added" in perplexity_results and perplexity_results["added"]:
-                for item_name in perplexity_results["added"]:
-                    # Find the item in the database to get its expiration date
-                    item_doc = db.items.find_one({"name": item_name.lower()})
-                    if item_doc:
-                        # Calculate expiration period in days
-                        try:
-                            exp_date = datetime.datetime.fromisoformat(item_doc.get("expiration_date"))
-                            current_date = datetime.datetime.utcnow()
-                            expiration_period = (exp_date - current_date).days
-                            
-                            # Ensure expiration period is positive
-                            expiration_period = max(1, expiration_period)
-                            
-                            # Store the image vector
-                            print(f"Storing image vector for {item_name} with expiration period {expiration_period} days")
-                            store_image_vector(temp_image_path, item_name, expiration_period)
-                            results["vector_stored"] = True
-                        except Exception as e:
-                            print(f"Error storing vector for {item_name}: {str(e)}")
-                            if "errors" not in results:
-                                results["errors"] = []
-                            results["errors"].append({
-                                "name": item_name,
-                                "action": "store_vector",
-                                "error": str(e)
-                            })
-        
-        return jsonify(results), 200
-        
-    except Exception as e:
-        print(f"DEBUG: Error in upload_image: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
 @inventory_bp.route("/upload-image-pair", methods=["POST"])
 def upload_image_pair():
     """
@@ -492,38 +407,36 @@ def upload_image_pair():
     - Second image: Removing item from fridge
     """
     try:
-        if 'first_image' not in request.files:
-            return jsonify({"error": "First image file is required"}), 400
-            
-        # Get first image (adding to fridge)
-        first_image_file = request.files['first_image']
-        if first_image_file.filename == '':
-            return jsonify({"error": "Empty first image file"}), 400
-            
-        # Read the first image file and convert to base64
-        first_image_data = first_image_file.read()
-        first_base64_image = base64.b64encode(first_image_data).decode('utf-8')
-        
-        # Get second image (removing from fridge) - optional
-        second_base64_image = None
-        if 'second_image' in request.files:
-            second_image_file = request.files['second_image']
-            if second_image_file.filename != '':
-                second_image_data = second_image_file.read()
-                second_base64_image = base64.b64encode(second_image_data).decode('utf-8')
+        if 'take_in_image' not in request.files and 'take_out_image' not in request.files:
+            return jsonify({"error": "Image file is required"}), 400
+        take_in_base64_image = None
+        take_out_base64_image = None
+
+        if 'take_in_image' in request.files:
+            take_in_image_file = request.files['take_in_image']
+            if take_in_image_file.filename == '':
+                return jsonify({"error": "Empty first image file"}), 400 
+            # Read the first image file and convert to base64
+            take_in_image_data = take_in_image_file.read()
+            take_in_base64_image = base64.b64encode(take_in_image_data).decode('utf-8')
+        if 'take_out_image' in request.files:
+            take_out_image_file = request.files['take_out_image']
+            if take_out_image_file.filename != '':
+                take_out_image_data = take_out_image_file.read()
+                take_out_base64_image = base64.b64encode(take_out_image_data).decode('utf-8')
         
         # Process the image pair
-        results = process_image_pair(first_base64_image, second_base64_image)
+        results = process_image_pair(take_in_base64_image, take_out_base64_image)
         
-        # Check if we need to use Perplexity for the first image
-        if "need_perplexity" in results:
-            temp_image_path = results.pop("need_perplexity")
+        # Check if we need to use AI for the first image
+        if "need_ai" in results:
+            temp_image_path = results.pop("need_ai")
             
             print("Using Vertex AI to identify objects in the image...")
-            perplexity_response = identify_object_from_image(image_url=f"data:image/jpeg;base64,{first_base64_image}")
+            perplexity_response = identify_object_from_image(image_url=f"data:image/jpeg;base64,{take_in_base64_image}")
             
             # Process the response
-            perplexity_results, status_code = process_perplexity_response(perplexity_response, first_base64_image)
+            perplexity_results, status_code = process_perplexity_response(perplexity_response, take_in_base64_image)
             
             # Ensure all required keys exist in results before merging
             for key in ["added", "updated", "errors"]:
@@ -636,4 +549,61 @@ def reject_update_and_create_new():
         
     except Exception as e:
         print(f"Error in reject_update_and_create_new: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@inventory_bp.route("/confirm-updates", methods=["POST"])
+def confirm_updates():
+    """
+    Endpoint to confirm and apply pending updates to item quantities.
+    """
+    try:
+        data = request.get_json()
+        if not data or not isinstance(data, list):
+            return jsonify({"error": "Expected list of updates"}), 400
+
+        results = {"updated": [], "errors": []}
+        
+        for update in data:
+            item_id = update.get("item_id")
+            new_quantity = update.get("new_quantity")
+            
+            if not item_id or new_quantity is None:
+                results["errors"].append({
+                    "error": "Missing item_id or new_quantity",
+                    "update": update
+                })
+                continue
+                
+            try:
+                # Update the item quantity
+                result = db.items.update_one(
+                    {"_id": ObjectId(item_id)},
+                    {
+                        "$set": {
+                            "quantity": new_quantity,
+                            "date_added": datetime.datetime.utcnow()
+                        }
+                    }
+                )
+                
+                if result.modified_count > 0:
+                    results["updated"].append({
+                        "item_id": item_id,
+                        "new_quantity": new_quantity
+                    })
+                else:
+                    results["errors"].append({
+                        "error": "Item not found or no changes made",
+                        "item_id": item_id
+                    })
+            except Exception as e:
+                results["errors"].append({
+                    "error": str(e),
+                    "item_id": item_id
+                })
+        
+        return jsonify(results), 200
+        
+    except Exception as e:
+        print(f"Error in confirm_updates: {str(e)}")
         return jsonify({"error": str(e)}), 500

@@ -1,5 +1,6 @@
-import React, { useState, DragEvent, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { UpdateConfirmationModal } from '../inventory/UpdateConfirmationModal';
+import { createImageHandlers } from './util/imageHandlers';
 
 interface ImageProcessorStylizedProps {
   onInventoryUpdate: () => void;
@@ -35,135 +36,24 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
   // Confirmation modal state
   const [showConfirmationModal, setShowConfirmationModal] = useState<boolean>(false);
   const [pendingUpdates, setPendingUpdates] = useState<any[]>([]);
-  const [currentImageData, setCurrentImageData] = useState<{ first: string | null, second: string | null }>({ first: null, second: null });
 
-  // Take In image handlers
-  const handleTakeInDrag = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // Create image handlers for take in
+  const takeInHandlers = createImageHandlers({
+    setImage: setTakeInImage,
+    setPreview: setTakeInPreview,
+    setLoading: setTakeInLoading,
+    onNotification,
+    fileInputRef: takeInFileInputRef
+  });
 
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setTakeInDragActive(true);
-    } else if (e.type === "dragleave") {
-      setTakeInDragActive(false);
-    }
-  };
-
-  const handleTakeInDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setTakeInDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleTakeInFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleTakeInClick = () => {
-    // Only open file dialog if there's no preview image
-    if (!takeInPreview) {
-      takeInFileInputRef.current?.click();
-    }
-  };
-
-  const handleTakeInFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleTakeInFile(e.target.files[0]);
-    }
-  };
-
-  const handleTakeInFile = (file: File) => {
-    setTakeInLoading(true);
-    setTakeInImage(file);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target && typeof e.target.result === 'string') {
-        setTakeInPreview(e.target.result);
-      }
-      setTakeInLoading(false);
-    };
-    reader.onerror = () => {
-      setTakeInLoading(false);
-      onNotification('Failed to process the image. Please try again.');
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const clearTakeInImage = (e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-    }
-    setTakeInImage(null);
-    setTakeInPreview(null);
-    setTakeInLoading(false);
-    if (takeInFileInputRef.current) {
-      takeInFileInputRef.current.value = '';
-    }
-  };
-
-  // Take Out image handlers
-  const handleTakeOutDrag = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setTakeOutDragActive(true);
-    } else if (e.type === "dragleave") {
-      setTakeOutDragActive(false);
-    }
-  };
-
-  const handleTakeOutDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setTakeOutDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleTakeOutFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleTakeOutClick = () => {
-    // Only open file dialog if there's no preview image
-    if (!takeOutPreview) {
-      takeOutFileInputRef.current?.click();
-    }
-  };
-
-  const handleTakeOutFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleTakeOutFile(e.target.files[0]);
-    }
-  };
-
-  const handleTakeOutFile = (file: File) => {
-    setTakeOutLoading(true);
-    setTakeOutImage(file);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target && typeof e.target.result === 'string') {
-        setTakeOutPreview(e.target.result);
-      }
-      setTakeOutLoading(false);
-    };
-    reader.onerror = () => {
-      setTakeOutLoading(false);
-      onNotification('Failed to process the image. Please try again.');
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const clearTakeOutImage = (e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-    }
-    setTakeOutImage(null);
-    setTakeOutPreview(null);
-    setTakeOutLoading(false);
-    if (takeOutFileInputRef.current) {
-      takeOutFileInputRef.current.value = '';
-    }
-  };
+  // Create image handlers for take out
+  const takeOutHandlers = createImageHandlers({
+    setImage: setTakeOutImage,
+    setPreview: setTakeOutPreview,
+    setLoading: setTakeOutLoading,
+    onNotification,
+    fileInputRef: takeOutFileInputRef
+  });
 
   // Process uploaded images
   const handleProcessImages = async () => {
@@ -179,16 +69,15 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
       const formData = new FormData();
 
       if (takeInImage) {
-        formData.append('first_image', takeInImage);
+        formData.append('take_in_image', takeInImage);
       }
 
       if (takeOutImage) {
-        formData.append('second_image', takeOutImage);
+        formData.append('take_out_image', takeOutImage);
       }
 
       // Add parameter to indicate that we want to store the image in the vector database
       // if no similar images are found (similarity < 0.75)
-      formData.append('store_new_images', 'true');
 
       const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
       const response = await fetch(`${API_URL}/api/inventory/upload-image-pair`, {
@@ -198,12 +87,6 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
 
       if (response.ok) {
         const responseData = await response.json();
-
-        // Store current image data for potential reject operations
-        setCurrentImageData({
-          first: takeInPreview,
-          second: takeOutPreview
-        });
 
         // Check if there are updates that need confirmation
         if (responseData.updated && responseData.updated.length > 0) {
@@ -231,6 +114,20 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
           notifications.push(`✅ Added: ${addedItems.join(', ')}`);
         }
 
+        // Handle removed items
+        if (responseData.removed && responseData.removed.length > 0) {
+          const removedItems = responseData.removed.map((item: any) => {
+            if (typeof item === 'string') {
+              return item;
+            } else if (item.name) {
+              return `${item.name} (qty: ${item.quantity || 1})`;
+            }
+            return 'Unknown item';
+          });
+          const removedNotification = `❌ Removed: ${removedItems.join(', ')}`;
+          notifications.push(removedNotification);
+        }
+
         // Handle similar items found
         if (responseData.similar_items_found && responseData.similar_items_found.length > 0) {
           const similarItems = responseData.similar_items_found.map((item: any) =>
@@ -241,7 +138,8 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
 
         // Show success notifications
         if (notifications.length > 0) {
-          onNotification(notifications.join('\n'));
+          const finalNotification = notifications.join('\n');
+          onNotification(finalNotification);
         } else {
           onNotification("Images processed successfully, but no items were detected.");
         }
@@ -261,8 +159,8 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
 
         // Refresh inventory and clear images
         await onInventoryUpdate();
-        if (takeInImage) clearTakeInImage();
-        if (takeOutImage) clearTakeOutImage();
+        if (takeInImage) takeInHandlers.clearImage();
+        if (takeOutImage) takeOutHandlers.clearImage();
 
       } else {
         // Check for the specific 'updated' response which actually means the item was added
@@ -271,18 +169,16 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
 
         // If the response contains "updated", the item was likely added despite the error status
         if (responseMessage.includes('updated')) {
-          console.log("Item was likely added despite 'updated' response. Refreshing inventory.");
           onNotification("✅ Item was added successfully (with minor backend notice)");
           await onInventoryUpdate();
-          if (takeInImage) clearTakeInImage();
-          if (takeOutImage) clearTakeOutImage();
+          if (takeInImage) takeInHandlers.clearImage();
+          if (takeOutImage) takeOutHandlers.clearImage();
         } else if (responseMessage.includes('similarity') || responseMessage.includes('threshold')) {
           // This is the case where no similar images were found, but we've asked the backend to store it
-          console.log("No similar images found. Image should be added to the vector database.");
           onNotification("✅ New image type detected and added to our database. Item identification might improve in future uploads.");
           await onInventoryUpdate();
-          if (takeInImage) clearTakeInImage();
-          if (takeOutImage) clearTakeOutImage();
+          if (takeInImage) takeInHandlers.clearImage();
+          if (takeOutImage) takeOutHandlers.clearImage();
         } else {
           throw new Error(responseMessage);
         }
@@ -298,88 +194,54 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
   // Confirmation modal handlers
   const handleConfirmUpdates = async () => {
     try {
+      // Call the confirm-updates endpoint
+      const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+      const response = await fetch(`${API_URL}/api/inventory/confirm-updates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pendingUpdates),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to confirm updates');
+      }
+
+      const responseData = await response.json();
+
       // Create success notification for confirmed updates
-      const updatedItems = pendingUpdates.map((item: any) => {
-        if (typeof item === 'string') {
-          return item;
-        } else if (item.name) {
-          return `${item.name} (new qty: ${item.new_quantity || item.quantity || 'updated'})`;
-        }
-        return 'Unknown item';
+      const updatedItems = responseData.updated.map((item: any) => {
+        const pendingItem = pendingUpdates.find((p: any) => p.item_id === item.item_id);
+        return `${pendingItem?.name || 'Unknown'} (new qty: ${item.new_quantity})`;
       });
       onNotification(`🔄 Updated: ${updatedItems.join(', ')}`);
 
+      // Handle any errors
+      if (responseData.errors && responseData.errors.length > 0) {
+        const errorMessages = responseData.errors.map((error: any) =>
+          `${error.item_id}: ${error.error}`
+        );
+        onNotification(`⚠️ Some updates failed: ${errorMessages.join(', ')}`);
+      }
+
       // Refresh inventory and clear images
       await onInventoryUpdate();
-      if (takeInImage) clearTakeInImage();
-      if (takeOutImage) clearTakeOutImage();
+      if (takeInImage) takeInHandlers.clearImage();
+      if (takeOutImage) takeOutHandlers.clearImage();
 
       // Close modal and reset state
       setShowConfirmationModal(false);
       setPendingUpdates([]);
-      setCurrentImageData({ first: null, second: null });
     } catch (err) {
       console.error('Error confirming updates:', err);
       onNotification('Failed to confirm updates. Please try again.');
     }
   };
 
-  const handleRejectUpdate = async (itemName: string) => {
-    try {
-      const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
-
-      // Find the item in pending updates to get original quantity
-      const updateItem = pendingUpdates.find(item => item.name === itemName);
-      if (!updateItem) {
-        onNotification('Error: Could not find update information.');
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/api/inventory/reject-update`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          item_name: itemName,
-          original_quantity: updateItem.old_quantity,
-          image_data: currentImageData.first ? currentImageData.first.split(',')[1] : null // Remove data:image/jpeg;base64, prefix
-        }),
-      });
-
-      if (response.ok) {
-        const responseData = await response.json();
-        onNotification(`✅ Created new item: ${responseData.new_item.name} and reverted ${responseData.reverted_item.name} to quantity ${responseData.reverted_item.quantity}`);
-
-        // Remove this item from pending updates
-        setPendingUpdates(prev => prev.filter(item => item.name !== itemName));
-
-        // If no more pending updates, close modal
-        const remainingUpdates = pendingUpdates.filter(item => item.name !== itemName);
-        if (remainingUpdates.length === 0) {
-          setShowConfirmationModal(false);
-          setPendingUpdates([]);
-          setCurrentImageData({ first: null, second: null });
-        }
-
-        // Refresh inventory
-        await onInventoryUpdate();
-        if (takeInImage) clearTakeInImage();
-        if (takeOutImage) clearTakeOutImage();
-      } else {
-        const errorData = await response.json();
-        onNotification(`Error rejecting update: ${errorData.error || 'Unknown error'}`);
-      }
-    } catch (err) {
-      console.error('Error rejecting update:', err);
-      onNotification('Failed to reject update. Please try again.');
-    }
-  };
-
   const handleCloseConfirmationModal = () => {
     setShowConfirmationModal(false);
     setPendingUpdates([]);
-    setCurrentImageData({ first: null, second: null });
     // Don't refresh inventory here - updates remain as they were
   };
 
@@ -392,16 +254,19 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
           <h4 className="upload-title take-in">Take In (Add Items)</h4>
           <div
             className={`upload-dropzone take-in ${takeInDragActive ? 'active' : ''} ${takeInPreview ? 'has-preview' : ''}`}
-            onDragEnter={handleTakeInDrag}
-            onDragOver={handleTakeInDrag}
-            onDragLeave={handleTakeInDrag}
-            onDrop={handleTakeInDrop}
-            onClick={handleTakeInClick}
+            onDragEnter={(e) => setTakeInDragActive(takeInHandlers.handleDrag(e))}
+            onDragOver={(e) => setTakeInDragActive(takeInHandlers.handleDrag(e))}
+            onDragLeave={(e) => setTakeInDragActive(takeInHandlers.handleDrag(e))}
+            onDrop={(e) => {
+              setTakeInDragActive(false);
+              takeInHandlers.handleDrop(e);
+            }}
+            onClick={() => takeInHandlers.handleClick(takeInPreview)}
           >
             <input
               type="file"
               ref={takeInFileInputRef}
-              onChange={handleTakeInFileChange}
+              onChange={takeInHandlers.handleFileChange}
               accept="image/*"
               className="file-input"
             />
@@ -414,7 +279,7 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
                   className="preview-image"
                 />
                 <button
-                  onClick={(e) => clearTakeInImage(e)}
+                  onClick={(e) => takeInHandlers.clearImage(e)}
                   className="clear-image-btn"
                 >
                   ×
@@ -444,16 +309,19 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
           <h4 className="upload-title take-out">Take Out (Remove Items)</h4>
           <div
             className={`upload-dropzone take-out ${takeOutDragActive ? 'active' : ''} ${takeOutPreview ? 'has-preview' : ''}`}
-            onDragEnter={handleTakeOutDrag}
-            onDragOver={handleTakeOutDrag}
-            onDragLeave={handleTakeOutDrag}
-            onDrop={handleTakeOutDrop}
-            onClick={handleTakeOutClick}
+            onDragEnter={(e) => setTakeOutDragActive(takeOutHandlers.handleDrag(e))}
+            onDragOver={(e) => setTakeOutDragActive(takeOutHandlers.handleDrag(e))}
+            onDragLeave={(e) => setTakeOutDragActive(takeOutHandlers.handleDrag(e))}
+            onDrop={(e) => {
+              setTakeOutDragActive(false);
+              takeOutHandlers.handleDrop(e);
+            }}
+            onClick={() => takeOutHandlers.handleClick(takeOutPreview)}
           >
             <input
               type="file"
               ref={takeOutFileInputRef}
-              onChange={handleTakeOutFileChange}
+              onChange={takeOutHandlers.handleFileChange}
               accept="image/*"
               className="file-input"
             />
@@ -466,7 +334,7 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
                   className="preview-image"
                 />
                 <button
-                  onClick={(e) => clearTakeOutImage(e)}
+                  onClick={(e) => takeOutHandlers.clearImage(e)}
                   className="clear-image-btn"
                 >
                   ×
@@ -537,7 +405,6 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
         updatedItems={pendingUpdates}
         isVisible={showConfirmationModal}
         onConfirm={handleConfirmUpdates}
-        onReject={handleRejectUpdate}
         onClose={handleCloseConfirmationModal}
       />
     </div>

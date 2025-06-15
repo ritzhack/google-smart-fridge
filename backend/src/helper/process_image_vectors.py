@@ -38,7 +38,7 @@ def save_base64_image(base64_image, prefix="img"):
             os.unlink(temp_file.name)
         raise
 
-def process_image_pair(first_image_base64, second_image_base64=None):
+def process_image_pair(first_image_base64=None, second_image_base64=None):
     """
     Process a pair of images (adding to fridge and removing from fridge).
     
@@ -73,7 +73,7 @@ def process_image_pair(first_image_base64, second_image_base64=None):
                 existing_item = db.items.find_one({"name": item_name.lower()})
                 
                 if existing_item:
-                    # Item exists in inventory - update quantity
+                    # Item exists in inventory - calculate proposed update
                     current_quantity = existing_item.get("quantity", 0)
                     # Convert to int if it's stored as string
                     if isinstance(current_quantity, str):
@@ -83,22 +83,15 @@ def process_image_pair(first_image_base64, second_image_base64=None):
                             current_quantity = 0
                     new_quantity = current_quantity + 1
                     
-                    db.items.update_one(
-                        {"_id": existing_item["_id"]},
-                        {
-                            "$set": {
-                                "quantity": new_quantity,
-                                "date_added": datetime.utcnow()
-                            }
-                        }
-                    )
+                    # Instead of updating the database, just return the proposed update
                     results["updated"] = results.get("updated", [])
                     results["updated"].append({
                         "name": item_name,
                         "new_quantity": new_quantity,
-                        "old_quantity": current_quantity  # Include old quantity for comparison
+                        "old_quantity": current_quantity,  # Include old quantity for comparison
+                        "item_id": str(existing_item["_id"])  # Include item ID for later update
                     })
-                    print(f"Updated {item_name} quantity to {new_quantity}")
+                    print(f"Proposed update for {item_name}: quantity {current_quantity} -> {new_quantity}")
                 else:
                     # Item not in inventory - create new item
                     print(f"Similar image found for {item_name} but not in inventory, creating new item")
@@ -123,7 +116,7 @@ def process_image_pair(first_image_base64, second_image_base64=None):
                 # Image not in database, let Perplexity process it
                 print("Image not found in database, use Perplexity for identification")
                 # Don't do anything here - return special flag so upload_image knows to continue with Perplexity
-                results["need_perplexity"] = first_image_path
+                results["need_ai"] = first_image_path
                 
                 # Note: After Perplexity identifies the item, we need to store it in the vector index
                 # This will be handled in the upload-image route after perplexity processing
@@ -137,16 +130,57 @@ def process_image_pair(first_image_base64, second_image_base64=None):
             similar_images = vector_service.search_similar_images(second_image_path, limit=1, threshold=0.7)
             
             if similar_images:
-                # Found similar image, remove from items collection
+                # Found similar image, check quantity before removing
                 similar_item = similar_images[0]
                 item_name = similar_item.get("name")
                 
-                # Find and remove from items collection
-                delete_result = db.items.delete_one({"name": item_name.lower()})
+                # Find the item in the database
+                existing_item = db.items.find_one({"name": item_name.lower()})
                 
-                if delete_result.deleted_count > 0:
-                    results["removed"].append(item_name)
-                    print(f"Removed {item_name} from items collection")
+                if existing_item:
+                    current_quantity = existing_item.get("quantity", 0)
+                    # Convert to int if it's stored as string
+                    if isinstance(current_quantity, str):
+                        try:
+                            current_quantity = int(current_quantity)
+                        except (ValueError, TypeError):
+                            current_quantity = 0
+                    
+                    if current_quantity > 1:
+                        # Update quantity instead of removing
+                        new_quantity = current_quantity - 1
+                        update_result = db.items.update_one(
+                            {"name": item_name.lower()},
+                            {"$set": {"quantity": new_quantity}}
+                        )
+                        
+                        if update_result.modified_count > 0:
+                            results["updated"].append({
+                                "name": item_name,
+                                "new_quantity": new_quantity,
+                                "old_quantity": current_quantity,
+                                "item_id": str(existing_item["_id"])
+                            })
+                            print(f"Updated {item_name} quantity from {current_quantity} to {new_quantity}")
+                        else:
+                            results["errors"].append({
+                                "name": item_name,
+                                "action": "update",
+                                "error": "Failed to update quantity"
+                            })
+                    else:
+                        # Remove item if quantity is 1 or less
+                        delete_result = db.items.delete_one({"name": item_name.lower()})
+                        
+                        if delete_result.deleted_count > 0:
+                            results["removed"].append(item_name)
+                            print(f"Removed {item_name} from items collection")
+                        else:
+                            results["errors"].append({
+                                "name": item_name,
+                                "action": "remove",
+                                "error": "Item not found in inventory"
+                            })
                 else:
                     results["errors"].append({
                         "name": item_name,
