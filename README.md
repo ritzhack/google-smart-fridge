@@ -15,15 +15,15 @@ An AI-powered smart fridge application that helps track food inventory, expirati
 
 ### Backend (Flask)
 
-- **Framework**: Flask with SQLAlchemy and MongoDB
+- **Framework**: Flask with MongoDB Atlas
 - **AI Integration**: Google Cloud AI Platform for image recognition and recipe generation
 - **Image Processing**: Sentence Transformers for vector similarity matching
-- **Database**: SQLAlchemy with MySQL and MongoDB for persistent storage
+- **Database**: MongoDB Atlas for persistent storage
 
 ### Frontend (React)
 
 - **Framework**: React with TypeScript
-- **UI Library**: Shadcn UI components with Tailwind CSS
+- **UI Library**: Radix UI components with Tailwind CSS
 - **Build Tool**: Vite
 - **State Management**: React hooks and context
 
@@ -41,7 +41,6 @@ The application uses Google Cloud's vision capabilities to identify food items f
 
 - Processes images using Google Cloud Vision API
 - Returns structured JSON with item names and counts
-- Uses Pydantic models for response validation
 - Handles both local images and URLs
 
 #### 2. Recipe Generation
@@ -69,11 +68,11 @@ The application implements intelligent image matching using Sentence Transformer
 
 The application securely manages API credentials using environment variables:
 
-```bash
+```env
 # Required in .env file
-GOOGLE_APPLICATION_CREDENTIALS='path to your json'
-MONGODB_URI=your_mongodb_connection_string
-MYSQL_URI=your_mysql_connection_string
+PROJECT_ID=your_gcp_project_id
+GOOGLE_APPLICATION_CREDENTIALS=path/to/your/credentials.json
+MONGODB_URI=your_mongodb_atlas_connection_string
 ```
 
 ## 📋 Prerequisites
@@ -82,9 +81,8 @@ Before running the application, ensure you have:
 
 - **Python 3.9+** with pip
 - **Node.js 18+** with npm/pnpm/yarn
-- **MySQL** database
-- **MongoDB** database
-- **Google Cloud Platform** account with AI Platform enabled
+- **MongoDB Atlas** cluster
+- **Google Cloud Platform** project with Vertex AI enabled
 
 ## 🛠️ Installation & Setup
 
@@ -100,13 +98,8 @@ cd SmartFridge
 #### Option 1: Using Setup Script (Recommended)
 
 ```bash
-# Navigate to backend directory
 cd backend
-
-# Make setup script executable
 chmod +x setup.sh
-
-# Run setup script
 ./setup.sh
 ```
 
@@ -115,43 +108,25 @@ The setup script will:
 - Check Python version (requires 3.9+)
 - Create and activate a virtual environment
 - Install all required dependencies
-- Create a default .env file
+- Create a default .env file (if not present)
 - Provide instructions for next steps
 
 #### Option 2: Manual Setup
 
 ```bash
-# Navigate to backend directory
 cd backend
-
-# Create and activate virtual environment
 python -m venv venv
-
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
 source venv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Create environment file
-cp .env.example .env
-# Edit .env with your API keys and database URLs
+# Create .env file and add your API keys and database URLs
 ```
 
 **Required Environment Variables** (`.env`):
 
 ```env
-# Database Configuration
-MONGODB_URI=mongodb://localhost:27017/smartfridge
-MYSQL_URI=mysql://root:password@localhost/smartfridge
-
-# Google Cloud Configuration
+PROJECT_ID=your_gcp_project_id
 GOOGLE_APPLICATION_CREDENTIALS=path/to/your/credentials.json
-
-# Flask Configuration
+MONGODB_URI=your_mongodb_atlas_connection_string
 FLASK_ENV=development
 FLASK_DEBUG=True
 ```
@@ -159,21 +134,16 @@ FLASK_DEBUG=True
 ### 3. Frontend Setup (React)
 
 ```bash
-# Navigate to frontend directory (from project root)
 cd frontend
-
-# Install dependencies
 pnpm install
-# Or with npm: npm install
-# Or with yarn: yarn install
+# Or: npm install / yarn install
 ```
 
 ### 4. Database Setup
 
-1. Create a MySQL database named `smartfridge`
-2. Create a MongoDB database named `smartfridge`
-3. Add your connection strings to the `.env` file
-4. The application will automatically create required tables and collections
+1. Create a MongoDB Atlas cluster and database named `smartfridge`
+2. Add your connection string to the `.env` file
+3. The application will automatically create required collections
 
 ## 🚀 Running the Application
 
@@ -181,7 +151,7 @@ pnpm install
 
 ```bash
 cd backend
-# Ensure virtual environment is activated
+source venv/bin/activate
 python src/main.py
 ```
 
@@ -202,6 +172,7 @@ The React application will start on `http://localhost:3000`
 ```
 SmartFridge/
 ├── backend/
+│   ├── setup.sh                         # Backend setup script
 │   ├── src/
 │   │   ├── helper/
 │   │   │   ├── identify_object_from_picutre.py  # Google Cloud Vision integration
@@ -249,14 +220,14 @@ SmartFridge/
 ### Common Issues
 
 1. **Database Connection Failed**
-   - Verify your database URIs in `.env`
+   - Verify your MongoDB Atlas URI in `.env`
    - Ensure your IP is whitelisted in MongoDB Atlas
    - Check network connectivity
 
 2. **Google Cloud API Errors**
-   - Verify your credentials file is correct
+   - Verify your credentials file and PROJECT_ID are correct
    - Check API quotas and limits
-   - Ensure AI Platform is enabled
+   - Ensure Vertex AI is enabled
 
 3. **Image Upload Issues**
    - Check image file size (max 10MB)
@@ -292,8 +263,8 @@ This project is licensed under the Apache License - see the [LICENSE](LICENSE) f
 ## 🙏 Acknowledgments
 
 - **Google Cloud Platform** for providing AI services
-- **MongoDB** and **MySQL** for database services
-- **Shadcn UI** for accessible React components
+- **MongoDB Atlas** for cloud database services
+- **Radix UI** for accessible React components
 - **Tailwind CSS** for utility-first styling
 
 ## 🙏 Disclaimer

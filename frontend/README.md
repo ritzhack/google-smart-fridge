@@ -1,10 +1,10 @@
 # SmartFridge Frontend
 
-A modern React application for the SmartFridge project, built with TypeScript, Vite, and Shadcn UI.
+A modern React application for the SmartFridge project, built with TypeScript, Vite, and Radix UI.
 
 ## 🚀 Features
 
-- **Modern UI**: Built with Shadcn UI components and Tailwind CSS
+- **Modern UI**: Built with Radix UI components and Tailwind CSS
 - **Type Safety**: Full TypeScript implementation
 - **Fast Development**: Vite for quick development and hot module replacement
 - **Code Quality**: ESLint and TypeScript for code quality and type checking
@@ -14,7 +14,7 @@ A modern React application for the SmartFridge project, built with TypeScript, V
 
 - **Framework**: React with TypeScript
 - **Build Tool**: Vite
-- **UI Library**: Shadcn UI
+- **UI Library**: Radix UI
 - **Styling**: Tailwind CSS
 - **State Management**: React Hooks and Context
 - **Code Quality**: ESLint with TypeScript support
@@ -39,6 +39,8 @@ pnpm dev
 
 The development server will start at `http://localhost:3000`
 
+> **Note:** This frontend expects the backend API to be running at `http://localhost:5001` by default. Make sure to start the backend server as described in the main README.
+
 ## 🏗️ Project Structure
 
 ```
@@ -47,9 +49,6 @@ frontend/
 │   ├── components/          # Reusable UI components
 │   ├── hooks/              # Custom React hooks
 │   ├── lib/                # Utility functions and configurations
-│   ├── pages/              # Page components
-│   ├── styles/             # Global styles and Tailwind config
-│   └── types/              # TypeScript type definitions
 ├── public/                 # Static assets
 ├── index.html             # Entry HTML file
 ├── vite.config.ts         # Vite configuration
@@ -102,15 +101,6 @@ module.exports = {
   },
   plugins: [],
 }
-```
-
-## 🧪 Testing
-
-```bash
-# Run tests
-pnpm test
-# Or with npm: npm test
-# Or with yarn: yarn test
 ```
 
 ## 📦 Building for Production

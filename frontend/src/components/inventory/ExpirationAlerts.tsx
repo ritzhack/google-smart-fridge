@@ -1,99 +1,76 @@
-import React, { useEffect } from 'react';
-import { ExpirationAlerts as ExpirationAlertsType } from '../../types';
+import React, { useState, useEffect } from 'react';
+
+interface ExpiringItem {
+  name: string;
+  quantity: string;
+  days_left: number;
+  expiration_date: string;
+}
 
 interface ExpirationAlertsProps {
-  alerts: ExpirationAlertsType;
-  isLoading: boolean;
-  onCheckExpirations: () => void;
-  inventory: Array<{
-    name: string;
-    quantity: string;
-    expiration_date?: string;
-  }>;
+  expiringItems: ExpiringItem[];
 }
 
-interface AlertItemProps {
-  item: {
-    name: string;
-    quantity: string;
-    days_left: number;
-    expiration_date: string;
-  };
-  color: string;
-}
+export const ExpirationAlerts: React.FC<ExpirationAlertsProps> = ({ expiringItems }) => {
+  const [isBannerMinimized, setIsBannerMinimized] = useState<boolean>(false);
+  const [shouldShow, setShouldShow] = useState<boolean>(false);
 
-const AlertItem: React.FC<AlertItemProps> = ({ item, color }) => (
-  <li key={`${item.name}-${item.expiration_date}`} style={{ color }}>
-    {item.name} ({item.quantity}) - Expires in {item.days_left} day(s) ({new Date(item.expiration_date).toLocaleDateString()})
-  </li>
-);
-
-interface AlertSectionProps {
-  title: string;
-  items: Array<{
-    name: string;
-    quantity: string;
-    days_left: number;
-    expiration_date: string;
-  }>;
-  color: string;
-}
-
-const AlertSection: React.FC<AlertSectionProps> = ({ title, items, color }) => (
-  items.length > 0 && (
-    <div className="alert-section">
-      <h4>{title}</h4>
-      <ul>
-        {items.map((item) => (
-          <AlertItem key={`${item.name}-${item.expiration_date}`} item={item} color={color} />
-        ))}
-      </ul>
-    </div>
-  )
-);
-
-export const ExpirationAlerts: React.FC<ExpirationAlertsProps> = ({
-  alerts,
-  isLoading,
-  onCheckExpirations,
-  inventory,
-}) => {
-  const hasAlerts = alerts.warning_3_days.length > 0 || alerts.warning_week.length > 0;
-
-  // Watch for changes in inventory and check expirations
   useEffect(() => {
-    if (inventory.length > 0) {
-      onCheckExpirations();
-    }
-  }, [inventory]);
+    setShouldShow(expiringItems.length > 0);
+  }, [expiringItems]);
+
+  if (!shouldShow) return null;
 
   return (
-    <section id="expiration-alerts">
-      <h2>Expiration Alerts</h2>
-      <button 
-        onClick={onCheckExpirations} 
-        disabled={isLoading}
-        className="check-expirations-btn"
-      >
-        {isLoading ? "Checking..." : "Check for Expiring Items"}
-      </button>
-
-      {hasAlerts ? (
-        <div className="alerts-container">
-          <AlertSection
-            title="Expiring in 3 days or less:"
-            items={alerts.warning_3_days}
-            color="orange"
-          />
-          <AlertSection
-            title="Expiring in 1 week (but more than 3 days):"
-            items={alerts.warning_week}
-            color="gold"
-          />
+    <div style={{
+      backgroundColor: '#fff3cd',
+      border: '1px solid #ffeaa7',
+      borderRadius: '8px',
+      padding: isBannerMinimized ? '10px' : '15px',
+      marginBottom: '20px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      transition: 'all 0.3s ease'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '20px' }}>⚠️</span>
+          <strong style={{ color: '#856404' }}>
+            {expiringItems.length} item{expiringItems.length > 1 ? 's' : ''} expiring soon
+          </strong>
         </div>
-      ) : (
-        <p className="no-alerts">No immediate expiration alerts based on the last check.</p>
+        <button
+          onClick={() => setIsBannerMinimized(!isBannerMinimized)}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '18px',
+            cursor: 'pointer',
+            color: '#856404',
+            padding: '5px'
+          }}
+        >
+          {isBannerMinimized ? '▼' : '▲'}
+        </button>
+      </div>
+
+      {!isBannerMinimized && (
+        <div style={{ marginTop: '10px' }}>
+          {expiringItems.map((item, index) => (
+            <div key={index} style={{
+              display: 'inline-block',
+              backgroundColor: item.days_left <= 3 ? '#f8d7da' : '#d4edda',
+              color: item.days_left <= 3 ? '#721c24' : '#155724',
+              padding: '5px 10px',
+              borderRadius: '15px',
+              margin: '2px',
+              fontSize: '12px',
+              fontWeight: '500'
+            }}>
+              {item.name} - {item.days_left === 0 ? 'Expires today!' : `${item.days_left} days left`}
+            </div>
+          ))}
+        </div>
       )}
-    </section>
+    </div>
   );
-}; 
+};

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getInventoryItems, generateRecipes, checkExpirations, updateInventoryItem, deleteInventoryItem } from "./services/api";
 import { InventoryManagement, ItemDetailModal } from "./components/inventory";
+import { DeleteConfirmationDialog } from "./components/inventory/DeleteConfirmationDialog";
 import { RecipeSuggestions } from "./components/recipes";
 import { FridgeSimulator } from "./components/fridge_simulator";
 import { Settings } from "./components/setting";
@@ -40,6 +41,9 @@ function App() {
   const [editedItem, setEditedItem] = useState<Partial<InventoryItem>>({});
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+
+  // Delete confirmation dialog state
+  const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
 
   // Fetch inventory data
   const fetchInventory = async (): Promise<void> => {
@@ -140,6 +144,7 @@ function App() {
 
       fetchInventory();
       setSelectedItem(null);
+      setItemToDelete(null);
     } catch (err) {
       console.error("Error deleting item:", err);
       setError("Failed to delete item. Please try again.");
@@ -354,7 +359,14 @@ function App() {
         onToggleEdit={toggleEditMode}
         onEditChange={handleEditChange}
         onSaveChanges={saveItemChanges}
-        onRemoveItem={handleRemoveItem}
+        onRemoveItem={(item) => setItemToDelete(item)}
+      />
+
+      <DeleteConfirmationDialog
+        item={itemToDelete}
+        isOpen={!!itemToDelete}
+        onClose={() => setItemToDelete(null)}
+        onConfirm={() => itemToDelete && handleRemoveItem(itemToDelete)}
       />
     </div>
   );

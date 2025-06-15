@@ -13,7 +13,7 @@ interface ItemDetailModalProps {
   onToggleEdit: () => void;
   onEditChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onSaveChanges: () => Promise<void>;
-  onRemoveItem: (item: InventoryItem) => Promise<void>;
+  onRemoveItem: (item: InventoryItem) => void;
 }
 
 export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({

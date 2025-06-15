@@ -1,87 +1,125 @@
-# Smart Fridge App - Project Completion Report
+# SmartFridge App - Project Completion Report
 
 ## Project Overview
 
-This project involved the design and development of a prototype Smart Fridge Application. The primary goals were to enable users to track items in their fridge, monitor expiration dates, receive alerts for expiring items, and get recipe suggestions based on available ingredients.
+This project is a full-stack AI-powered Smart Fridge Application. It enables users to track items in their fridge, monitor expiration dates, receive alerts for expiring items, and get recipe suggestions based on available ingredients using Google Cloud AI and computer vision.
 
 ## Features Implemented
 
-1.  **Inventory Management:**
-    *   Users can manually add items with their names and quantities to the fridge inventory via a web interface.
-    *   The system automatically attempts to determine a general expiration date for added items using a simulated AI service.
-    *   The current inventory, along with expiration dates, is displayed to the user.
-    *   Basic CRUD (Create, Read) operations for inventory items are supported through the backend API and frontend UI for adding and viewing items. Update and Delete functionalities are stubbed in the backend API but not fully implemented in the current UI.
-    *   A conceptual endpoint for processing fridge images to automatically update inventory was created in the backend, simulating item identification and changes (add/remove).
+1. **Inventory Management:**
+    * Users can manually add items with their names and quantities to the fridge inventory via a web interface.
+    * The system attempts to determine a general expiration date for added items using Google Cloud AI.
+    * The current inventory, along with expiration dates, is displayed to the user.
+    * Full CRUD operations for inventory items are supported through the backend API and frontend UI.
+    * Users can upload images of their fridge to automatically identify items using Google Cloud Vision.
 
-2.  **Expiration Alerts:**
-    *   Due to system limitations preventing automated scheduled tasks (like cron jobs), a manual trigger system for expiration alerts was implemented.
-    *   Users can click a button on the web interface to check for items expiring soon.
-    *   The system provides two levels of alerts: items expiring within 1 week and items expiring within 3 days.
-    *   These alerts are displayed on the frontend.
+2. **Expiration Alerts:**
+    * Users can check for items expiring soon via the web interface.
+    * The system provides alerts for items expiring within 3 days.
+    * These alerts are displayed on the frontend.
 
-3.  **Recipe Generation:**
-    *   Users can request recipe suggestions based on the current items in their fridge inventory.
-    *   The system uses a simulated AI service to generate recipes.
-    *   Generated recipes, including name, ingredients, and instructions, are displayed on the web interface.
-    *   The backend supports saving favorite recipes, though this is not yet integrated into the current frontend UI.
-
-4.  **Shopping List (Conceptual):**
-    *   The initial plan included shopping list generation. While not fully implemented in the UI, the backend database schema includes considerations for user preferences which could be extended for this.
+3. **Recipe Generation:**
+    * Users can request recipe suggestions based on the current items in their fridge inventory.
+    * The system uses Google Cloud AI to generate recipes.
+    * Generated recipes, including name, ingredients, and instructions, are displayed on the web interface.
 
 ## Technology Stack
 
-*   **Backend:**
-    *   Framework: Python with Flask
-    *   Database: MongoDB (local instance)
-    *   Services: Python-based services for simulated AI (item/expiration identification, recipe generation) and notifications.
-*   **Frontend:**
-    *   Framework: React (created using `create_react_app` template)
-    *   API Communication: Axios
-*   **Development Environment:** Ubuntu 22.04 sandbox
+* **Backend:**
+  * Framework: Python with Flask
+  * Database: MongoDB Atlas
+  * AI: Google Cloud Vertex AI (Gemini model) for image and recipe processing
+  * Image Processing: Sentence Transformers for vector similarity
+  * Setup: Automated with `setup.sh` and `.env` file
+* **Frontend:**
+  * Framework: React (Vite + TypeScript)
+  * UI Library: Radix UI
+  * Styling: Tailwind CSS
+  * API Communication: Fetch/Axios
+* **Development Environment:** Cross-platform (macOS, Linux, Windows)
 
 ## Key Project Files Structure
 
-*   `/home/ubuntu/smart_fridge_app/`
-    *   `backend/smart_fridge_api/`: Contains the Flask backend application.
-        *   `src/`: Main source code for the backend.
-            *   `models/`: Python classes for data models (Item, Recipe, UserPreference).
-            *   `routes/`: Flask Blueprints for API endpoints (inventory, recipes, notifications).
-            *   `services/`: Business logic services (AI, image processing, notifications).
-            *   `db_connector.py`: MongoDB connection setup.
-            *   `main.py`: Flask application entry point.
-        *   `venv/`: Python virtual environment.
-        *   `requirements.txt`: (To be generated before final packaging, listing Python dependencies like Flask, pymongo).
-    *   `frontend/frontend_app/`: Contains the React frontend application.
-        *   `src/`: Main source code for the frontend.
-            *   `services/api.js`: Functions for making API calls to the backend.
-            *   `App.js`: Main React component rendering the UI.
-            *   `App.css`: Basic styling.
-        *   `public/`: Static assets.
-        *   `package.json`: Frontend dependencies and scripts.
-*   `/home/ubuntu/todo.md`: The detailed task checklist used throughout the project.
-*   `/home/ubuntu/project_summary.md`: This report.
+```
+SmartFridge/
+├── backend/
+│   ├── setup.sh
+│   ├── requirements.txt
+│   ├── .env
+│   └── src/
+│       ├── helper/
+│       ├── models/
+│       ├── routes/
+│       ├── services/
+│       ├── test/
+│       └── main.py
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── vite.config.ts
+└── README.md
+```
+
+## Environment Variables
+
+The backend requires a `.env` file in the `backend/` directory with the following variables:
+
+```env
+PROJECT_ID=your_gcp_project_id
+GOOGLE_APPLICATION_CREDENTIALS=path/to/your/credentials.json
+MONGODB_URI=your_mongodb_atlas_connection_string
+FLASK_ENV=development
+FLASK_DEBUG=True
+```
+
+## Setup & Running Instructions
+
+**Backend (Flask):**
+
+1. Navigate to `backend/`.
+2. Run the setup script:
+
+   ```bash
+   chmod +x setup.sh
+   ./setup.sh
+   ```
+
+   This will create a virtual environment, install dependencies, and create a `.env` file if needed.
+3. Update `.env` with your actual credentials and connection strings.
+4. Start the backend server:
+
+   ```bash
+   source venv/bin/activate
+   python src/main.py
+   ```
+
+   The API will be available at `http://localhost:5001`.
+
+**Frontend (React):**
+
+1. Navigate to `frontend/`.
+2. Install dependencies:
+
+   ```bash
+   pnpm install
+   # Or: npm install / yarn install
+   ```
+
+3. Start the development server:
+
+   ```bash
+   pnpm run dev
+   # Or: npm run dev / yarn dev
+   ```
+
+   The UI will be accessible at `http://localhost:3000`.
 
 ## Limitations and Future Enhancements
 
-*   **Automated Notifications:** The current notification system relies on manual triggering due to environment limitations on scheduled tasks. Future work could involve deploying to an environment that supports cron jobs or using a cloud-based scheduler for automated daily checks.
-*   **Image Processing:** Item identification via image processing is currently simulated. A real implementation would require integrating with actual computer vision services or models.
-*   **AI Integration:** The AI services for expiration dates and recipe generation are simulated. Real AI/ML models or APIs (like Perplexity or Vertex AI as initially discussed) would need to be integrated.
-*   **User Interface:** The UI is a basic prototype. Enhancements could include more sophisticated item management (update/delete), user accounts, persistent user preferences, shopping list features, and a more polished design.
-*   **Error Handling & Security:** Basic error handling is in place. A production application would require more robust error handling, input validation, and security measures (e.g., authentication, authorization, HTTPS).
-*   **Deployment:** The application is currently set up to run in the development environment. Deployment would require containerization (e.g., Docker) and hosting on a suitable platform.
+* **Automated Notifications:** Currently, expiration alerts are triggered manually. Future work could add scheduled notifications.
+* **Image Processing:** Relies on Google Cloud Vision; further improvements could include local fallback or more advanced models.
+* **User Interface:** The UI can be further enhanced for better UX, user accounts, and more features.
+* **Deployment:** The app is set up for local development. Production deployment would require containerization and cloud hosting.
 
-## Instructions to Run (Conceptual)
-
-**Backend (Flask):**
-1.  Navigate to `/home/ubuntu/smart_fridge_app/backend/smart_fridge_api`.
-2.  Ensure MongoDB is running.
-3.  Activate the virtual environment: `source venv/bin/activate`.
-4.  Install dependencies: `pip install -r requirements.txt` (Note: `requirements.txt` should be generated if not present using `pip freeze > requirements.txt` within the venv).
-5.  Run the Flask app: `python3 src/main.py`. The API will be available at `http://localhost:5001`.
-
-**Frontend (React):**
-1.  Navigate to `/home/ubuntu/smart_fridge_app/frontend/frontend_app`.
-2.  Install dependencies: `pnpm install` (or `npm install`).
-3.  Start the development server: `pnpm run dev` (or `npm start`). The UI will be accessible at `http://localhost:3000` (or another port specified by React).
-
-This prototype provides a foundational set of features for a smart fridge application. Further development can build upon this base to create a more comprehensive and robust solution.
+This project provides a robust foundation for a smart fridge application leveraging modern AI and cloud technologies.
