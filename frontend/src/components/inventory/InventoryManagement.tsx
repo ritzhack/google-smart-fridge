@@ -74,8 +74,9 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
         throw new Error(errorData.error || 'Failed to delete item');
       }
 
+      // Update inventory and expiration alerts
       onInventoryUpdate();
-      // Update expiring items after successful deletion
+      // Update local expiring items
       checkExpiringItems();
     } catch (err) {
       console.error('Error deleting item:', err);

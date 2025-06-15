@@ -52,6 +52,8 @@ function App() {
     try {
       const response = await getInventoryItems();
       setInventory(response.data);
+      // Update expiration alerts after inventory is updated
+      await handleCheckExpirations();
     } catch (err) {
       console.error("Error fetching inventory:", err);
       setError("Failed to fetch inventory. Is the backend server running?");
@@ -141,6 +143,9 @@ function App() {
       setInventory(prev => prev.filter(invItem =>
         invItem._id !== item._id && invItem.id !== item.id
       ));
+
+      // Update expiration alerts after removing item
+      await handleCheckExpirations();
 
       fetchInventory();
       setSelectedItem(null);
