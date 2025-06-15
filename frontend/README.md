@@ -1,50 +1,148 @@
-# React + TypeScript + Vite
+# SmartFridge Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern React application for the SmartFridge project, built with TypeScript, Vite, and Shadcn UI.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Modern UI**: Built with Shadcn UI components and Tailwind CSS
+- **Type Safety**: Full TypeScript implementation
+- **Fast Development**: Vite for quick development and hot module replacement
+- **Code Quality**: ESLint and TypeScript for code quality and type checking
+- **Responsive Design**: Mobile-first approach with Tailwind CSS
 
-## Expanding the ESLint configuration
+## 🛠️ Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+- **Framework**: React with TypeScript
+- **Build Tool**: Vite
+- **UI Library**: Shadcn UI
+- **Styling**: Tailwind CSS
+- **State Management**: React Hooks and Context
+- **Code Quality**: ESLint with TypeScript support
 
-- Configure the top-level `parserOptions` property like this:
+## 📦 Installation
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+# Install dependencies
+pnpm install
+# Or with npm: npm install
+# Or with yarn: yarn install
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+## 🚀 Development
+
+```bash
+# Start development server
+pnpm dev
+# Or with npm: npm run dev
+# Or with yarn: yarn dev
+```
+
+The development server will start at `http://localhost:3000`
+
+## 🏗️ Project Structure
+
+```
+frontend/
+├── src/
+│   ├── components/          # Reusable UI components
+│   ├── hooks/              # Custom React hooks
+│   ├── lib/                # Utility functions and configurations
+│   ├── pages/              # Page components
+│   ├── styles/             # Global styles and Tailwind config
+│   └── types/              # TypeScript type definitions
+├── public/                 # Static assets
+├── index.html             # Entry HTML file
+├── vite.config.ts         # Vite configuration
+├── tsconfig.json          # TypeScript configuration
+├── tailwind.config.js     # Tailwind CSS configuration
+└── package.json           # Project dependencies and scripts
+```
+
+## 🔧 Configuration
+
+### TypeScript
+
+The project uses TypeScript for type safety. Configuration is split into two files:
+
+- `tsconfig.json`: Base TypeScript configuration
+- `tsconfig.app.json`: Application-specific TypeScript configuration
+
+### ESLint
+
+The project uses ESLint with TypeScript support. Configuration is in `eslint.config.js`:
 
 ```js
-// eslint.config.js
 import react from 'eslint-plugin-react'
 
 export default tseslint.config({
-  // Set the react version
   settings: { react: { version: '18.3' } },
   plugins: {
-    // Add the react plugin
     react,
   },
   rules: {
-    // other rules...
-    // Enable its recommended rules
     ...react.configs.recommended.rules,
     ...react.configs['jsx-runtime'].rules,
   },
 })
 ```
+
+### Tailwind CSS
+
+The project uses Tailwind CSS for styling. Configuration is in `tailwind.config.js`:
+
+```js
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+```
+
+## 🧪 Testing
+
+```bash
+# Run tests
+pnpm test
+# Or with npm: npm test
+# Or with yarn: yarn test
+```
+
+## 📦 Building for Production
+
+```bash
+# Build for production
+pnpm build
+# Or with npm: npm run build
+# Or with yarn: yarn build
+```
+
+The build output will be in the `dist` directory.
+
+## 🔍 Code Quality
+
+The project uses ESLint for code quality. To run the linter:
+
+```bash
+# Run linter
+pnpm lint
+# Or with npm: npm run lint
+# Or with yarn: yarn lint
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Commit changes: `git commit -am 'Add feature'`
+4. Push to branch: `git push origin feature-name`
+5. Submit a Pull Request
+
+## 📄 License
+
+This project is licensed under the Apache License - see the [LICENSE](../LICENSE) file for details.
