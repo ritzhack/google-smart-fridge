@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UpdateConfirmationModal } from '../inventory/UpdateConfirmationModal';
+import { NewItemConfirmationModal } from '../inventory/NewItemConfirmationModal';
 import { createImageHandlers } from './util/imageHandlers';
 
 interface ImageProcessorStylizedProps {
@@ -9,7 +10,6 @@ interface ImageProcessorStylizedProps {
   setNewItemName: (name: string) => void;
   newItemQuantity: string;
   setNewItemQuantity: (quantity: string) => void;
-  onAddItemManually: (e: React.FormEvent) => void;
 }
 
 export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
@@ -19,7 +19,6 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
   setNewItemName,
   newItemQuantity,
   setNewItemQuantity,
-  onAddItemManually,
 }) => {
   const [takeInDragActive, setTakeInDragActive] = useState<boolean>(false);
   const [takeOutDragActive, setTakeOutDragActive] = useState<boolean>(false);
@@ -35,7 +34,10 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
 
   // Confirmation modal state
   const [showConfirmationModal, setShowConfirmationModal] = useState<boolean>(false);
+  const [showNewItemModal, setShowNewItemModal] = useState<boolean>(false);
   const [pendingUpdates, setPendingUpdates] = useState<any[]>([]);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [isManualAdding, setIsManualAdding] = useState<boolean>(false);
 
   // Create image handlers for take in
   const takeInHandlers = createImageHandlers({
@@ -54,6 +56,72 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
     onNotification,
     fileInputRef: takeOutFileInputRef
   });
+
+  const handleAddNewItem = async (itemName: string, quantity: number, imageUrl: string | null) => {
+    try {
+      const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+
+      // Extract base64 data from the image URL if it's a data URL
+      let image_data = null;
+      if (imageUrl && imageUrl.startsWith('data:')) {
+        image_data = imageUrl.split(',')[1]; // Get the base64 part after the comma
+      }
+
+      // Prepare the request body
+      const requestBody = {
+        name: itemName,
+        quantity: quantity,
+        image_data: image_data,  // Send the base64 data
+        image_url: imageUrl      // Keep the original URL for reference
+      };
+      const response = await fetch(`${API_URL}/api/inventory/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        onNotification(`✅ Created new item: ${responseData.name} with quantity ${responseData.quantity}`);
+
+        // Remove this item from pending updates
+        setPendingUpdates(prev => prev.filter(item => item.name !== itemName));
+
+        // If no more pending updates, close modal
+        const remainingUpdates = pendingUpdates.filter(item => item.name !== itemName);
+        if (remainingUpdates.length === 0) {
+          setShowConfirmationModal(false);
+          setPendingUpdates([]);
+        }
+
+        // Refresh inventory
+        await onInventoryUpdate();
+        if (takeInImage) takeInHandlers.clearImage();
+        if (takeOutImage) takeOutHandlers.clearImage();
+      } else {
+        const errorData = await response.json();
+        onNotification(`Error creating new item: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Error creating new item:', err);
+      onNotification('Failed to create new item. Please try again.');
+    } finally {
+      setShowNewItemModal(false);
+      setIsManualAdding(false);
+    }
+  };
+
+  const handleManualAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItemName) return;
+
+    setIsManualAdding(true);
+    await handleAddNewItem(newItemName, parseInt(newItemQuantity) || 1, null);
+    setNewItemName("");
+    setNewItemQuantity("1");
+  };
 
   // Process uploaded images
   const handleProcessImages = async () => {
@@ -239,12 +307,6 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
     }
   };
 
-  const handleCloseConfirmationModal = () => {
-    setShowConfirmationModal(false);
-    setPendingUpdates([]);
-    // Don't refresh inventory here - updates remain as they were
-  };
-
   return (
     <div className="scan-panel-section">
       <h3>Upload Images</h3>
@@ -374,7 +436,7 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
       {/* Manual Add Item Form */}
       <div className="manual-add-container">
         <h4>Manual Add Item</h4>
-        <form onSubmit={onAddItemManually} className="manual-add-form">
+        <form onSubmit={handleManualAdd} className="manual-add-form">
           <input
             type="text"
             value={newItemName}
@@ -382,6 +444,7 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
             placeholder="Item name (e.g., Apple)"
             required
             className="manual-input"
+            disabled={isManualAdding}
           />
           <input
             type="text"
@@ -390,12 +453,14 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
             placeholder="Quantity (e.g., 2)"
             required
             className="manual-input"
+            disabled={isManualAdding}
           />
           <button
             type="submit"
-            className="manual-add-btn"
+            className={`manual-add-btn ${isManualAdding ? 'disabled' : ''}`}
+            disabled={isManualAdding}
           >
-            Add Item
+            {isManualAdding ? 'Adding...' : 'Add Item'}
           </button>
         </form>
       </div>
@@ -405,7 +470,28 @@ export const ImageProcessorStylized: React.FC<ImageProcessorStylizedProps> = ({
         updatedItems={pendingUpdates}
         isVisible={showConfirmationModal}
         onConfirm={handleConfirmUpdates}
-        onClose={handleCloseConfirmationModal}
+        onClose={() => {
+          setShowConfirmationModal(false);
+          setPendingUpdates([]);
+        }}
+        onAddNewItem={(item) => {
+          setSelectedItem(item);
+          setShowConfirmationModal(false);
+          setShowNewItemModal(true);
+        }}
+      />
+
+      {/* New Item Confirmation Modal */}
+      <NewItemConfirmationModal
+        isVisible={showNewItemModal}
+        onClose={() => {
+          setShowNewItemModal(false);
+          setSelectedItem(null);
+        }}
+        onSave={handleAddNewItem}
+        initialName={selectedItem?.name || ''}
+        initialQuantity={selectedItem?.new_quantity || 0}
+        imageUrl={takeInPreview}
       />
     </div>
   );

@@ -14,6 +14,7 @@ interface UpdateConfirmationModalProps {
     isVisible: boolean;
     onConfirm: (items: UpdatedItem[]) => void;
     onClose: () => void;
+    onAddNewItem: (item: UpdatedItem) => void;
 }
 
 export const UpdateConfirmationModal: React.FC<UpdateConfirmationModalProps> = ({
@@ -21,6 +22,7 @@ export const UpdateConfirmationModal: React.FC<UpdateConfirmationModalProps> = (
     isVisible,
     onConfirm,
     onClose,
+    onAddNewItem,
 }) => {
     const [localItems, setLocalItems] = useState<UpdatedItem[]>(updatedItems);
 
@@ -81,8 +83,8 @@ export const UpdateConfirmationModal: React.FC<UpdateConfirmationModalProps> = (
                                         ✓ Correct
                                     </button>
                                     <button
-                                        className="reject-update-btn"
-                                        onClick={() => onClose()}
+                                        className="create-new-item-btn"
+                                        onClick={() => onAddNewItem(item)}
                                     >
                                         ✗ Add as New Item
                                     </button>

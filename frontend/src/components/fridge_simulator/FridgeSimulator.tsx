@@ -8,7 +8,6 @@ interface FridgeSimulatorProps {
   setNewItemName: (name: string) => void;
   newItemQuantity: string;
   setNewItemQuantity: (quantity: string) => void;
-  onAddItemManually: (e: React.FormEvent) => void;
 }
 
 export const FridgeSimulator: React.FC<FridgeSimulatorProps> = ({
@@ -18,7 +17,6 @@ export const FridgeSimulator: React.FC<FridgeSimulatorProps> = ({
   setNewItemName,
   newItemQuantity,
   setNewItemQuantity,
-  onAddItemManually,
 }) => {
   return (
     <div className="scan-panel">
@@ -34,7 +32,6 @@ export const FridgeSimulator: React.FC<FridgeSimulatorProps> = ({
         setNewItemName={setNewItemName}
         newItemQuantity={newItemQuantity}
         setNewItemQuantity={setNewItemQuantity}
-        onAddItemManually={onAddItemManually}
       />
     </div>
   );

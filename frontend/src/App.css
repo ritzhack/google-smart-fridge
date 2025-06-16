@@ -2069,7 +2069,7 @@ body {
   gap: 8px;
 }
 
-.confirm-update-btn, .reject-update-btn {
+.confirm-update-btn, .create-new-item-btn {
   padding: 8px 16px;
   border: none;
   border-radius: 8px;
@@ -2088,12 +2088,12 @@ body {
   background-color: #059669;
 }
 
-.reject-update-btn {
+.create-new-item-btn {
   background-color: #f59e0b;
   color: white;
 }
 
-.reject-update-btn:hover {
+.create-new-item-btn:hover {
   background-color: #d97706;
 }
 

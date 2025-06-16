@@ -156,26 +156,6 @@ function App() {
     }
   };
 
-  const handleAddItemManually = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!newItemName) return;
-
-    const newItem: ScanItem = {
-      id: `manual-${Date.now()}`,
-      name: newItemName,
-      quantity: newItemQuantity,
-      category: "Other",
-      expiration_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      image_data: ''
-    };
-
-    setInventory(prev => [...prev, { ...newItem, _id: Date.now().toString() }]);
-    setNewItemName("");
-    setNewItemQuantity("1");
-    fetchInventory();
-  };
-
   // Item detail modal
   const closeDetailCard = () => {
     setSelectedItem(null);
@@ -318,7 +298,6 @@ function App() {
         setNewItemName={setNewItemName}
         newItemQuantity={newItemQuantity}
         setNewItemQuantity={setNewItemQuantity}
-        onAddItemManually={handleAddItemManually}
       />
 
       <div className="App">
