@@ -7,7 +7,7 @@ import { FridgeSimulator } from "./components/fridge_simulator";
 import { Settings } from "./components/setting";
 import { NavigationFooter } from "./components/navigation_footer";
 import { Home } from "./components/home";
-import { InventoryItem, Recipe, ExpirationAlerts as ExpirationAlertsType, ScanItem } from "./types";
+import { InventoryItem, Recipe, ExpirationAlerts as ExpirationAlertsType } from "./types";
 import "./App.css";
 
 function App() {

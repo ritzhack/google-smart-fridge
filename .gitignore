@@ -99,7 +99,6 @@ Thumbs.db
 
 # Application specific
 logs/
-models/
 *.log 
 
 todo.md
